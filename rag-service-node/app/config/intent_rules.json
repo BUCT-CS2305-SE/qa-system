@@ -1,0 +1,44 @@
+[
+  {
+    "intent": "artifact_museum",
+    "required_entity": "artifact",
+    "template_name": "artifact_museum_query",
+    "keywords": ["现藏于哪", "收藏于哪", "哪家博物馆", "收藏地"]
+  },
+  {
+    "intent": "artifact_period",
+    "required_entity": "artifact",
+    "template_name": "artifact_period_query",
+    "keywords": ["哪个历史时期", "哪个朝代", "什么时期", "什么朝代"]
+  },
+  {
+    "intent": "artifact_material",
+    "required_entity": "artifact",
+    "template_name": "artifact_material_query",
+    "keywords": ["什么材料", "什么材质", "由什么制成"]
+  },
+  {
+    "intent": "painting_author",
+    "required_entity": "artifact",
+    "template_name": "painting_author_query",
+    "keywords": ["作者是谁", "谁画的", "谁创作的"]
+  },
+  {
+    "intent": "artist_biography",
+    "required_entity": "artist",
+    "template_name": "artist_biography_query",
+    "keywords": ["生平经历", "作者生平", "生平是怎样"]
+  },
+  {
+    "intent": "dynasty_representative_artifacts",
+    "required_entity": "dynasty",
+    "template_name": "dynasty_representative_query",
+    "keywords": ["代表性文物", "有哪些代表文物", "有哪些文物"]
+  },
+  {
+    "intent": "museum_count",
+    "required_entity": "museum",
+    "template_name": "museum_count_query",
+    "keywords": ["收藏了多少件", "多少件中国文物", "一共有多少件"]
+  }
+]
