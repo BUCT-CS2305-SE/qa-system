@@ -22,9 +22,10 @@ Implements intelligent question answering functionality based on the knowledge g
   - 聚合：图谱 facts + 文档 RAG chunks -> LLM 生成 -> answer + sources
   - 日志、鉴权、限流（可配合 Redis）
 
-- `rag-service-node/`（Node.js + TS 微服务）：
-  - 复用/参考 FastGPT 的 embedding、query extension、向量召回与检索流程
-  - 存储：Mongo（chunk 与元数据）+ PostgreSQL(pgvector)（向量）+ Redis（缓存/锁/限流）
+- `rag-service-node/`（RAG 微服务目录，当前已集成 Python 原型）：
+  - 长期目标仍是 Node.js + TypeScript 微服务
+  - 当前已先集成一套 Python/FastAPI 原型，用于跑通问答主链路、统一接口和组内并行开发
+  - 后续可在此目录内逐步迁移为 Node/TS 实现，或保留 Python 作为临时原型服务
 
 - `web-frontend/`（TypeScript + Vite）：
   - Web 问答页面（chat + sources 展示）
@@ -33,7 +34,7 @@ Implements intelligent question answering functionality based on the knowledge g
 ## 3. 目录结构
 
 - `backend-spring/`：主后端（Spring Boot）占位
-- `rag-service/`：RAG/向量检索微服务（Node.js + TypeScript）占位
+- `rag-service-node/`：RAG/向量检索微服务目录，当前包含 Python 原型骨架
 - `web-frontend/`：Web 问答前端（TypeScript + Vite，已可打开页面）
 - `infra/`：基础设施与部署占位（docker-compose、k8s、env 模板等）
 - `specs/`：接口与数据规范（OpenAPI、字段字典、错误码、返回结构等）
