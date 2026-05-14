@@ -1,7 +1,7 @@
 # qa-system
 Implements intelligent question answering functionality based on the knowledge graph, supporting natural language queries and semantic matching.
 
-# 中国图书馆 QA 子系统（规划与占位）
+# 中国图书馆 QA 子系统
 
 ## 1. 子系统目标
 
@@ -14,28 +14,124 @@ Implements intelligent question answering functionality based on the knowledge g
 - 查不到必须明确返回“暂无相关数据”，禁止臆造。
 - 回答需携带可点击来源（至少一个或明确标注无来源）。
 
-## 2. 总体架构（落地路线）
+## 2. 技术栈与技术路线
 
-- `backend-spring/`（Spring Boot）：
-  - 对外统一 QA API（建议：`POST /api/qa/ask`）
-  - Neo4j 查询与规则问答（至少 10 类）
-  - 聚合：图谱 facts + 文档 RAG chunks -> LLM 生成 -> answer + sources
-  - 日志、鉴权、限流（可配合 Redis）
+本子系统采用“**知识图谱 + 大语言模型**”的检索增强生成（RAG）架构，优先保证事实准确性（来自知识图谱/检索证据），再由大模型完成自然语言组织与补充说明，并通过**强制无数据兜底**与**溯源展示**降低幻觉风险。
 
-- `rag-service-node/`（RAG 微服务目录，当前已集成 Python 原型）：
-  - 长期目标仍是 Node.js + TypeScript 微服务
-  - 当前已先集成一套 Python/FastAPI 原型，用于跑通问答主链路、统一接口和组内并行开发
-  - 后续可在此目录内逐步迁移为 Node/TS 实现，或保留 Python 作为临时原型服务
+同时，为了与仓库当前可运行的原型实现保持一致，本项目将 RAG 链路能力优先沉淀在 `rag-service-node/`（当前为 **Python + FastAPI** 原型），并计划引入 **LangChain（Python 生态）** 来加速检索链、提示词编排与可观测性落地；后续是否迁移到 Node/TS 版本再评估。
 
-- `web-frontend/`（TypeScript + Vite）：
-  - Web 问答页面（chat + sources 展示）
-  - 当前已提供离线 mock 版本，后续接入只需替换发送逻辑对接 `/api/qa/ask`
+### 2.1 架构分层与职责边界
+
+- **Web 前端（React + TypeScript + Vite）**
+  - 问答输入与对话展示（chat）
+  - 展示 `sources`（数据来源、可点击链接）与可选的 `facts`（从 KG 检索到的结构化事实）
+  - 可选：反馈按钮（有帮助/不准确）、对话上下文管理
+
+- **主后端 API（Spring Boot，聚合与对外统一入口）**
+  - 统一对外 QA API（建议 `POST /api/qa/ask`）
+  - 基础能力：鉴权、限流、日志、错误码规范
+  - 编排与治理：
+    - 负责请求校验、灰度/熔断/重试、调用链追踪
+    - 调用 `rag-service-node` 的接口获取答案（或在早期阶段直接反向代理到该服务）
+
+- **RAG 微服务（当前 Python/FastAPI 原型，后续可迁移 Node/TS）**
+  - 当前已集成：输入理解、查询构建、图谱检索（mock）、规则版答案组织、反馈记录、单元测试
+  - 近期目标：从“mock 检索 + 规则回答”逐步替换为“真实 KG/文档检索 +LLM 生成”
+  - 对外接口（原型已提供）：
+    - `GET /api/health`
+    - `POST /api/qa/ask`
+    - `POST /api/qa/feedback`
+
+- **知识图谱/检索与存储（Neo4j + 可选缓存/向量库）**
+  - Neo4j：实体/关系/属性数据与 Cypher 查询
+  - Redis：缓存、限流、会话上下文（多轮）
+  - 向量库：pgvector / Milvus 等，用于文档 RAG 证据片段召回
+
+### 2.2 LangChain 
+
+LangChain 不是“替代知识图谱”的核心数据层，而是用于**把检索与生成链路工程化**：
+
+- **检索链组装（Retrieval Chain）**：将“图谱 facts + 文档 chunks”统一封装为可复用的检索器/链
+- **提示词编排（Prompt + Output Parser）**：统一回答格式（answer/sources/facts/no_data）与结构化输出解析
+- **工具调用/函数调用（Tools，选做）**：将 Cypher 查询封装为工具，让模型在受控范围内调用（需强约束与审计）
+- **重排序/去重**：对召回证据做 rerank、去重、截断，提升回答质量
+- **可观测性**：链路日志、token/耗时统计、失败原因归因（可配合 LangSmith 或自建日志）
+
+### 2.3 主链路（KG + 文档检索 + LLM，可分阶段实现）
+
+**阶段 A（当前原型基线）**
+1. 用户输入自然语言问题
+2. 输入理解：标准化、实体抽取、意图识别
+3. 查询构建：意图→Cypher 模板 + 参数映射
+4. 图谱检索：先基于 mock/样例数据跑通，再接 Neo4j
+5. 答案组织：规则/模板化输出 + sources
+
+**阶段 B（接入真实 KG）**
+- 将图谱检索从 mock 替换为 Neo4j 真实查询（Cypher）
+- 完善别名归一、实体消歧、错误码与日志
+
+**阶段 C（接入文档 RAG + LLM 生成）**
+- 文档解析与分块 → 向量化 → 向量召回（pgvector 等）
+- 将“KG facts + 文档 chunks”作为上下文送入 LLM
+- 使用 LangChain/自研编排：证据选择→提示词→结构化输出解析→sources 组装
+
+关键约束：
+- **无数据兜底**：当 KG / 检索证据无法支撑答案时，返回“暂无相关数据”，而不是编造。
+- **事实与生成内容区分**：若引入 LLM 扩写/润色，需要在输出中清晰区分“图谱事实”与“模型生成补充”。
+
+### 2.4 简单问答范围（至少覆盖 10 类）
+
+至少覆盖以下类型，并优先做到“可解释 + 可溯源”：
+- 文物收藏地（现藏在哪家博物馆）
+- 文物年代（属于哪个时期/朝代）
+- 文物材质（材料）
+- 文物类型（器物类别）
+- 文物介绍（基于 KG facts/简介字段）
+- 书画作者（针对书画类文物）
+- 作者生平（针对书画作者）
+- 同一作者作品（作者还有哪些作品被海外博物馆收藏）
+- 同一朝代文物（某朝代代表性文物）
+- 文物尺寸与规格（尺寸/重量）
+- 相关文物推荐（相似风格/主题的文物）
+
+建议实现方式：
+- 每类问题对应一组“意图规则/分类标签 + 查询模板（Cypher） + 输出模板”，确保可控与可测试。
+
+### 2.5 答案溯源与可信度展示
+
+每条回答必须带来源说明：
+- `source_name`：如“数据来源：克利夫兰艺术博物馆”
+- `source_url/detail_url`：指向原始数据详情页
+- 若包含 LLM 生成补充描述：
+  - 与 KG facts 部分分区展示/标注（例如“以下为模型整理的补充说明”）
+
+### 2.6 选做能力（阶段性增强）
+
+- **多轮对话**：
+  - 支持代词指代（它/这件文物/该作者…）
+  - 保留最近 5 轮上下文用于意图理解
+  - 支持切换话题并重置上下文
+
+- **复杂问答**：
+  - 多跳推理（跨实体/跨关系）
+  - 比较类（唐 vs 宋瓷器风格差异等）
+  - 统计类（某馆藏数量等）
+  - 路径查询（文物与人物关联链）
+  - 技术建议：基于 KG 的多跳/路径查询 + LLM 生成推理链解释
+
+- **问答质量反馈机制**：
+  - 前端“有帮助/不准确”按钮
+  - 不准确记录入日志/工单，统计高频失败类型以反哺图谱与规则
+
+- **闲聊与文化导览**：
+  - 面向文物文化领域的扩展讲解与推荐
+  - 超出领域礼貌拒答并说明系统范围
 
 ## 3. 目录结构
 
 - `backend-spring/`：主后端（Spring Boot）占位
 - `rag-service-node/`：RAG/向量检索微服务目录，当前包含 Python 原型骨架
-- `web-frontend/`：Web 问答前端（TypeScript + Vite，已可打开页面）
+- `web-frontend/`：Web 问答前端（TypeScript + React，已可打开页面）
 - `infra/`：基础设施与部署占位（docker-compose、k8s、env 模板等）
 - `specs/`：接口与数据规范（OpenAPI、字段字典、错误码、返回结构等）
 - `docs/`：设计/技术栈/实施方案文档
