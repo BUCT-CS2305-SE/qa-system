@@ -43,7 +43,9 @@ export default function App() {
 
         <div className="fgSideSection">
           <div className="fgSideSectionTitle">提示</div>
-          <div className="fgSideHint">页面为占位 UI，接口契约与 mock 在 <code>src/api/qa.ts</code></div>
+          <div className="fgSideHint">
+            页面为占位 UI，接口契约与 mock 在 <code>src/api/qa.ts</code>
+          </div>
         </div>
 
         <div className="fgSideFooter">
@@ -55,7 +57,11 @@ export default function App() {
       </aside>
 
       <main className="fgMain">
-        <ChatHeader title="文物知识问答" desc="基于 KG + RAG（演示）" badges={["Neo4j", "pgvector"]} />
+        <ChatHeader
+          title="文物知识问答"
+          desc="基于 KG + RAG（演示）"
+          badges={['Neo4j', 'pgvector']}
+        />
 
         <ChatBox messages={messages} />
 

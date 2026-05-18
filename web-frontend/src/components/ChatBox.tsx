@@ -7,7 +7,9 @@ export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
     <section className="fgChat" role="log">
       <div className="fgChatInner" style={{ maxWidth: 980, margin: '0 auto' }}>
         {messages.length === 0 ? (
-          <div className="fgQuoteDesc" style={{ padding: 12 }}>请输入问题开始对话</div>
+          <div className="fgQuoteDesc" style={{ padding: 12 }}>
+            请输入问题开始对话
+          </div>
         ) : null}
 
         {messages.map((m, i) => (

@@ -41,5 +41,10 @@ export async function getHistory(limit = 20) {
 }
 
 export async function getSource(id: string) {
-  return Promise.resolve({ id, name: '示例来源', url: 'https://example.org/source/' + id, excerpt: '这是示例摘录' });
+  return Promise.resolve({
+    id,
+    name: '示例来源',
+    url: 'https://example.org/source/' + id,
+    excerpt: '这是示例摘录'
+  });
 }
