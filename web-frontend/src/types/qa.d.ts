@@ -6,6 +6,10 @@ export type QAResponse = {
   no_data?: boolean;
   sources?: Source[];
   facts?: Fact[];
+  intent?: string;
+  status?: string;
+  confidence?: number;
+  llm_note?: string | null;
 };
 
 export type Message = { role: 'user' | 'assistant'; text: string; meta?: QAResponse };

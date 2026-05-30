@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.models.api import FeedbackRequest, FeedbackResponse, QAAskRequest, QAAskResponse
+from app.models.api import FeedbackRequest, FeedbackResponse, QAAskRequest, QAAskResponse, QASummaryResponse
 from app.models.domain import FeedbackRecord
 from app.models.errors import (
     ERROR_CODE_ENTITY_NOT_FOUND,
@@ -29,6 +29,7 @@ class QAPipeline:
         trace_id = self._trace_id()
         understanding = self.understanding_service.understand(request.question, request.session_id)
         if understanding.status != "ok":
+            self.logging_service.record_understanding_failure(trace_id, request.question, understanding)
             return QAAskResponse(
                 status="clarify",
                 code=ERROR_CODE_UNRECOGNIZED_QUESTION,
@@ -42,6 +43,7 @@ class QAPipeline:
             )
 
         if not understanding.entities:
+            self.logging_service.record_entity_failure(trace_id, request.question, understanding)
             return QAAskResponse(
                 status="clarify",
                 code=ERROR_CODE_ENTITY_NOT_FOUND,
@@ -89,6 +91,13 @@ class QAPipeline:
             FeedbackRecord(trace_id=request.trace_id, helpful=request.helpful, comment=request.comment)
         )
         return FeedbackResponse(status="ok", code=ERROR_CODE_SUCCESS, message="反馈已记录")
+
+    def summarize_queries(self) -> QASummaryResponse:
+        return QASummaryResponse(
+            status="ok",
+            code=ERROR_CODE_SUCCESS,
+            summary=self.logging_service.summarize_queries().model_dump(),
+        )
 
     def _trace_id(self) -> str:
         return datetime.now().strftime("t%Y%m%d_%H%M%S")

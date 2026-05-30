@@ -18,6 +18,24 @@
     "keywords": ["什么材料", "什么材质", "由什么制成"]
   },
   {
+    "intent": "artifact_type",
+    "required_entity": "artifact",
+    "template_name": "artifact_type_query",
+    "keywords": ["什么类型", "什么类别", "哪种器物", "属于什么类型"]
+  },
+  {
+    "intent": "artifact_description",
+    "required_entity": "artifact",
+    "template_name": "artifact_description_query",
+    "keywords": ["介绍一下", "请介绍", "是什么", "是什么文物"]
+  },
+  {
+    "intent": "artifact_dimensions",
+    "required_entity": "artifact",
+    "template_name": "artifact_dimensions_query",
+    "keywords": ["尺寸", "规格", "多大", "重量是多少"]
+  },
+  {
     "intent": "painting_author",
     "required_entity": "artifact",
     "template_name": "painting_author_query",
@@ -28,6 +46,12 @@
     "required_entity": "artist",
     "template_name": "artist_biography_query",
     "keywords": ["生平经历", "作者生平", "生平是怎样"]
+  },
+  {
+    "intent": "recommended_artifacts",
+    "required_entity": "artifact",
+    "template_name": "recommended_artifacts_query",
+    "keywords": ["推荐", "相关文物", "类似文物", "还有什么文物", "还有哪些文物"]
   },
   {
     "intent": "dynasty_representative_artifacts",

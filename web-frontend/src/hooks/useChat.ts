@@ -19,7 +19,7 @@ export function useChat() {
     try {
       const resp: QAResponse = await ask(text);
       const assistant: Message = { role: 'assistant', text: resp.answer, meta: resp };
-      setMessages((s) => [...s, userMsg, assistant]);
+      setMessages((s) => [...s, assistant]);
     } finally {
       setLoading(false);
     }

@@ -1,50 +1,62 @@
+import { askBackend } from '@/api/backendClient';
+
 export type Source = { source_name: string; detail_url?: string };
+export type Fact = { key: string; value: string; evidence?: string };
 export type QAResponse = {
   request_id?: string;
   answer: string;
   no_data?: boolean;
   sources?: Source[];
-  facts?: Array<{ key: string; value: string; evidence?: string }>;
+  facts?: Fact[];
+  intent?: string;
+  status?: string;
+  confidence?: number;
+  llm_note?: string | null;
 };
 
-// mock ask implementation — 可替换为真实 fetch
-export async function ask(question: string, mode: string = 'auto'): Promise<QAResponse> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (!question || /无|没有|不知道/.test(question)) {
-        resolve({ answer: '暂无相关数据', no_data: true, sources: [] });
-        return;
-      }
-      if (/博物馆|收藏/.test(question)) {
-        resolve({
-          answer: '此文物现藏于示例博物馆。',
-          sources: [{ source_name: '示例博物馆', detail_url: 'https://example.org/museum/1' }],
-          facts: [{ key: 'location', value: '示例博物馆', evidence: 'KG:artifact.location' }]
-        });
-        return;
-      }
+export async function ask(question: string, _mode: string = 'auto'): Promise<QAResponse> {
+  const response = await askBackend(question);
+  if (!response) {
+    return {
+      answer: '问答服务暂时不可用，请稍后重试。',
+      no_data: true,
+      sources: [],
+      facts: [],
+      status: 'error'
+    };
+  }
 
-      resolve({
-        answer: '这是一个演示回答（mock），后端接口未接入或返回占位内容。',
-        sources: [{ source_name: '示例来源', detail_url: 'https://example.org/source/1' }],
-        facts: []
-      });
-    }, 600);
-  });
+  return {
+    request_id: response.trace_id,
+    answer: response.answer,
+    no_data: response.status === 'no_data',
+    sources: response.source.map((item) => ({
+      source_name: item.name,
+      detail_url: item.url
+    })),
+    facts: response.facts.map((item) => ({
+      key: item.predicate,
+      value: item.object,
+      evidence: item.source_name ?? item.subject
+    })),
+    intent: response.intent,
+    status: response.status,
+    confidence: response.confidence,
+    llm_note: response.llm_note
+  };
 }
 
-export async function getHistory(limit = 20) {
+export async function getHistory(_limit = 20) {
   return Promise.resolve([
-    { id: 'h1', title: '默认会话', last: '关于青铜器铭文的提问' },
-    { id: 'h2', title: '敦煌研究', last: '敦煌资料的年代判断' }
+    { id: 'local-session', title: '当前会话', last: '后端已接入，可直接测试问答链路' }
   ]);
 }
 
 export async function getSource(id: string) {
   return Promise.resolve({
     id,
-    name: '示例来源',
-    url: 'https://example.org/source/' + id,
-    excerpt: '这是示例摘录'
+    name: '来源详情',
+    url: id,
+    excerpt: '当前版本直接展示后端返回的来源链接。'
   });
 }

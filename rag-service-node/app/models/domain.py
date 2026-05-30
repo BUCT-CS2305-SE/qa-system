@@ -55,3 +55,31 @@ class FeedbackRecord(BaseModel):
     trace_id: str
     helpful: bool
     comment: Optional[str] = None
+
+
+class QueryLogRecord(BaseModel):
+    trace_id: str
+    question: str
+    normalized_question: str
+    intent: str
+    status: str
+    confidence: float
+    entities: Dict[str, List[str]] = Field(default_factory=dict)
+    query_text: Optional[str] = None
+    fail_reason: Optional[str] = None
+
+
+class SummaryFailureItem(BaseModel):
+    trace_id: str
+    question: str
+    intent: str
+    status: str
+    fail_reason: Optional[str] = None
+
+
+class QASummary(BaseModel):
+    total_questions: int = 0
+    intent_distribution: Dict[str, int] = Field(default_factory=dict)
+    status_distribution: Dict[str, int] = Field(default_factory=dict)
+    average_confidence: float = 0.0
+    failed_questions: List[SummaryFailureItem] = Field(default_factory=list)

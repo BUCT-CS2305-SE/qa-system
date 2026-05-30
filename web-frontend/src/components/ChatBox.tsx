@@ -25,7 +25,32 @@ export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
                       <div className="fgQuoteTag">doc</div>
                       <div className="fgQuoteBody">
                         <div className="fgQuoteName">{s.source_name}</div>
-                        <div className="fgQuoteDesc">{s.detail_url}</div>
+                        {s.detail_url ? (
+                          <a
+                            className="fgQuoteDesc"
+                            href={s.detail_url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {s.detail_url}
+                          </a>
+                        ) : (
+                          <div className="fgQuoteDesc">无来源链接</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {m.meta && m.meta.facts && m.meta.facts.length > 0 && (
+                <div className="fgQuoteList">
+                  {m.meta.facts.map((fact: any, idx: number) => (
+                    <div key={`fact-${idx}`} className="fgQuoteItem">
+                      <div className="fgQuoteTag">fact</div>
+                      <div className="fgQuoteBody">
+                        <div className="fgQuoteName">{fact.key}</div>
+                        <div className="fgQuoteDesc">{fact.value}</div>
                       </div>
                     </div>
                   ))}

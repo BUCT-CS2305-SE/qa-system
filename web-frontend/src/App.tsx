@@ -44,14 +44,14 @@ export default function App() {
         <div className="fgSideSection">
           <div className="fgSideSectionTitle">提示</div>
           <div className="fgSideHint">
-            页面为占位 UI，接口契约与 mock 在 <code>src/api/qa.ts</code>
+            当前页面已接入问答后端，请先启动 rag-service-node 再测试。
           </div>
         </div>
 
         <div className="fgSideFooter">
           <div className="fgSideFooterItem">
             <span className="dot online"></span>
-            <span>UI：静态占位</span>
+            <span>UI：已接真实问答接口</span>
           </div>
         </div>
       </aside>
@@ -59,7 +59,7 @@ export default function App() {
       <main className="fgMain">
         <ChatHeader
           title="文物知识问答"
-          desc="基于 KG + RAG（演示）"
+          desc="基于 KG + RAG（当前接入规则版问答后端）"
           badges={['Neo4j', 'pgvector']}
         />
 

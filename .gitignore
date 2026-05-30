@@ -7,10 +7,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Java / Maven
+target/
+
 node_modules
 dist
 dist-ssr
 *.local
+package-lock.json
 
 # Additional ignores for frontend development
 # caches and build output
@@ -33,6 +54,7 @@ Thumbs.db
 # lockfiles should be committed (do NOT ignore pnpm-lock.yaml)
 
 # Editor directories and files
+.vs/
 .vscode/*
 !.vscode/extensions.json
 .idea

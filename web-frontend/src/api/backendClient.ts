@@ -1,151 +1,89 @@
-// API client for frontend: provides both fetch and axios implementations
-
-export type AskRequest = {
-  question: string;
-  sessionId?: string;
+export type BackendSource = { name: string; url: string };
+export type BackendFact = {
+  subject: string;
+  predicate: string;
+  object: string;
+  source_name?: string;
+  source_url?: string;
 };
 
-export type Source = { sourceName: string; detailUrl: string };
-export type Fact = { key: string; value: string };
-
-export type AskResponse = {
-  requestId: string;
+export type BackendAskResponse = {
+  status: 'ok' | 'clarify' | 'no_data';
+  code: number;
+  intent: string;
   answer: string;
-  noData: boolean;
-  sources: Source[];
-  facts: Fact[];
+  facts: BackendFact[];
+  source: BackendSource[];
+  llm_note?: string | null;
+  confidence: number;
+  trace_id: string;
 };
 
-export type HistoryDto = {
-  id: number;
-  requestId: string;
-  sessionId?: string;
-  question: string;
-  answer: string;
-  noData: boolean;
-  sources: string; // raw JSON string
-  facts: string; // raw JSON string
-  createdAt: string;
+export type BackendFeedbackResponse = {
+  status: string;
+  code: number;
+  message: string;
 };
 
-// Use Vite runtime env (import.meta.env).
-const BASE_URL = import.meta.env.VITE_API_BASE ?? '';
+const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000';
 
-// ------------------ Fetch implementation ------------------
-export async function fetchAsk(
+export async function askBackend(
   question: string,
   sessionId?: string,
   timeoutMs = 15000
-): Promise<AskResponse | null> {
+): Promise<BackendAskResponse | null> {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
+  const timerId = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${BASE_URL}/api/qa/ask`, {
+    const response = await fetch(`${BASE_URL}/api/qa/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, sessionId }),
+      body: JSON.stringify({
+        question,
+        session_id: sessionId,
+        mode: 'rule'
+      }),
       signal: controller.signal
     });
-    if (!res.ok) {
-      console.error('ask failed', res.status, await res.text());
+    if (!response.ok) {
+      console.error('ask failed', response.status, await response.text());
       return null;
     }
-    const data = (await res.json()) as AskResponse;
-    return data;
-  } catch (err: unknown) {
-    if (err instanceof Error && err.name === 'AbortError') {
+    return (await response.json()) as BackendAskResponse;
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
       console.warn('ask request aborted (timeout)');
-    } else if (err instanceof Error) {
-      console.error('ask request error', err.message);
     } else {
-      console.error('ask request error', err);
+      console.error('ask request error', error);
     }
     return null;
   } finally {
-    clearTimeout(id);
+    window.clearTimeout(timerId);
   }
 }
 
-export async function fetchHistory(sessionId: string, limit = 20): Promise<HistoryDto[] | null> {
-  try {
-    const res = await fetch(
-      `${BASE_URL}/api/qa/history/list?sessionId=${encodeURIComponent(sessionId)}&limit=${limit}`
-    );
-    if (!res.ok) {
-      console.error('history fetch failed', res.status);
-      return null;
-    }
-    const data = (await res.json()) as HistoryDto[];
-    return data;
-  } catch (err: unknown) {
-    if (err instanceof Error) console.error('history request error', err.message);
-    else console.error('history request error', err);
-    return null;
-  }
-}
-
-export async function sendFeedback(
-  requestId: string,
+export async function sendBackendFeedback(
+  traceId: string,
   helpful: boolean,
   comment?: string
-): Promise<boolean> {
+): Promise<BackendFeedbackResponse | null> {
   try {
-    const payload = { requestId, helpful, comment };
-    const res = await fetch(`${BASE_URL}/api/qa/feedback`, {
+    const response = await fetch(`${BASE_URL}/api/qa/feedback`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        trace_id: traceId,
+        helpful,
+        comment
+      })
     });
-    return res.ok;
-  } catch (err: unknown) {
-    if (err instanceof Error) console.error('feedback error', err.message);
-    else console.error('feedback error', err);
-    return false;
-  }
-}
-
-// ------------------ Axios implementation ------------------
-// Note: install axios in web-frontend to use these functions: npm install axios
-import axios from 'axios';
-
-const axiosClient = axios.create({
-  baseURL: BASE_URL,
-  timeout: 15000
-});
-
-export async function axiosAsk(question: string, sessionId?: string): Promise<AskResponse | null> {
-  try {
-    const res = await axiosClient.post<AskResponse>('/api/qa/ask', { question, sessionId });
-    return res.data;
-  } catch (err) {
-    console.error('axios ask error', err);
+    if (!response.ok) {
+      console.error('feedback failed', response.status, await response.text());
+      return null;
+    }
+    return (await response.json()) as BackendFeedbackResponse;
+  } catch (error: unknown) {
+    console.error('feedback request error', error);
     return null;
-  }
-}
-
-export async function axiosHistory(sessionId: string, limit = 20): Promise<HistoryDto[] | null> {
-  try {
-    const res = await axiosClient.get<HistoryDto[]>('/api/qa/history/list', {
-      params: { sessionId, limit }
-    });
-    return res.data;
-  } catch (err) {
-    console.error('axios history error', err);
-    return null;
-  }
-}
-
-export async function axiosSendFeedback(
-  requestId: string,
-  helpful: boolean,
-  comment?: string
-): Promise<boolean> {
-  try {
-    const payload = { requestId, helpful, comment };
-    const res = await axiosClient.post('/api/qa/feedback', payload);
-    return res.status >= 200 && res.status < 300;
-  } catch (err) {
-    console.error('axios feedback error', err);
-    return false;
   }
 }

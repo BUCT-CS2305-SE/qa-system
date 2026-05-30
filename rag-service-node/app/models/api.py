@@ -34,3 +34,9 @@ class FeedbackResponse(BaseModel):
     status: str
     code: int
     message: str
+
+
+class QASummaryResponse(BaseModel):
+    status: str
+    code: int
+    summary: Dict[str, Any]
