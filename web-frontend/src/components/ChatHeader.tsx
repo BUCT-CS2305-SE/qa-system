@@ -1,12 +1,9 @@
-import React from 'react';
-
-export type ChatHeaderProps = {
+type Props = {
   title?: string;
   desc?: string;
-  badges?: string[];
 };
 
-export default function ChatHeader({ title = '问答', desc = '', badges = [] }: ChatHeaderProps) {
+export default function ChatHeader({ title = '问答', desc = '' }: Props) {
   return (
     <header className="fgTopbar">
       <div className="fgTopbarLeft">
@@ -14,11 +11,8 @@ export default function ChatHeader({ title = '问答', desc = '', badges = [] }:
         {desc ? <div className="fgTopbarDesc">{desc}</div> : null}
       </div>
       <div className="fgTopbarRight">
-        {badges.map((b, i) => (
-          <div key={i} className="fgBadge">
-            {b}
-          </div>
-        ))}
+        <div className="fgBadge">Neo4j</div>
+        <div className="fgBadge">RAG</div>
       </div>
     </header>
   );

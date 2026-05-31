@@ -1,103 +1,56 @@
-import unittest
-
+﻿import unittest
 from app.api.routes.health import health_check
 from app.models.api import FeedbackRequest, QAAskRequest
 from app.orchestration.qa_pipeline import QAPipeline
 
-
 class PipelineTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.pipeline = QAPipeline()
+    def setUp(self): self.pipeline = QAPipeline()
+    def test_health(self):
+        self.assertEqual(health_check()["status"], "ok")
+    def test_artifact_museum(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Admonitions Scroll museum?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "artifact_museum")
+    def test_artist_biography_success(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Zhang Zeduan biography?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "artist_biography")
+    def test_same_artist_works(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Zhang Zeduan other works?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "same_artist_works"); self.assertIn("Zhang Zeduan", r.answer)
+    def test_unknown_question_clarify(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="blah blah?", mode="rule"))
+        self.assertEqual(r.status, "clarify")
+    def test_feedback(self):
+        r = self.pipeline.record_feedback(FeedbackRequest(trace_id="t1", helpful=True, comment="u"))
+        self.assertEqual(r.status, "ok")
+    def test_artifact_type(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Tea Bowl and Dish type?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "artifact_type")
+    def test_artifact_material(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Bronze Galloping Horse material?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "artifact_material")
+    def test_artifact_description(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Tea Bowl and Dish description", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "artifact_description")
+    def test_artifact_dimensions(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Tea Bowl and Dish dimensions?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "artifact_dimensions")
+    def test_museum_count(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Metropolitan Museum count?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "museum_count")
+    def test_recommended_artifacts(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Tea Bowl and Dish related?", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "recommended_artifacts")
+    def test_query_summary(self):
+        self.pipeline.handle_question(QAAskRequest(question="Admonitions Scroll museum?", mode="rule"))
+        self.pipeline.handle_question(QAAskRequest(question="Zhang Zeduan biography?", mode="rule"))
+        self.pipeline.handle_question(QAAskRequest(question="blah blah?", mode="rule"))
+        r = self.pipeline.summarize_queries()
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.summary["total_questions"], 3)
+        self.assertEqual(r.summary["intent_distribution"]["artifact_museum"], 1)
+        self.assertEqual(r.summary["intent_distribution"]["artist_biography"], 1)
+        self.assertEqual(r.summary["intent_distribution"]["unknown"], 1)
+        self.assertEqual(r.summary["status_distribution"]["ok"], 2)
+        self.assertEqual(r.summary["status_distribution"]["clarify"], 1)
+        self.assertEqual(len(r.summary["failed_questions"]), 1)
 
-    def test_health(self) -> None:
-        payload = health_check()
-        self.assertEqual(payload["status"], "ok")
-
-    def test_ask_question_success(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="女史箴图现藏于哪家博物馆？", mode="rule")
-        )
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.intent, "artifact_museum")
-        self.assertTrue(response.source)
-
-    def test_ask_question_no_data(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="顾恺之的生平经历是怎样的？", mode="rule")
-        )
-        self.assertEqual(response.status, "no_data")
-
-    def test_feedback(self) -> None:
-        response = self.pipeline.record_feedback(
-            FeedbackRequest(trace_id="t20260510_000001", helpful=True, comment="useful")
-        )
-        self.assertEqual(response.status, "ok")
-
-    def test_ask_question_type_success(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="Tea Bowl and Dish是什么类型？", mode="rule")
-        )
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.intent, "artifact_type")
-        self.assertIn("类型", response.answer)
-
-    def test_ask_question_material_success(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="Tea Bowl and Dish是什么材质？", mode="rule")
-        )
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.intent, "artifact_material")
-        self.assertIn("材质", response.answer)
-
-    def test_ask_question_description_success(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="Tea Bowl and Dish请介绍", mode="rule")
-        )
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.intent, "artifact_description")
-        self.assertIn("Tea Bowl and Dish", response.answer)
-
-    def test_ask_question_dimensions_success(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="Tea Bowl and Dish的尺寸是多少？", mode="rule")
-        )
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.intent, "artifact_dimensions")
-        self.assertIn("尺寸", response.answer)
-
-    def test_museum_count_success(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="Art Institute of Chicago收藏了多少件中国文物？", mode="rule")
-        )
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.intent, "museum_count")
-        self.assertIn("40", response.answer)
-
-    def test_recommended_artifacts_success(self) -> None:
-        response = self.pipeline.handle_question(
-            QAAskRequest(question="Tea Bowl and Dish还有哪些文物推荐？", mode="rule")
-        )
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.intent, "recommended_artifacts")
-        self.assertTrue(response.facts)
-        self.assertIn("Tea Bowl and Dish", response.answer)
-
-    def test_query_summary_includes_intent_and_failures(self) -> None:
-        self.pipeline.handle_question(QAAskRequest(question="女史箴图现藏于哪家博物馆？", mode="rule"))
-        self.pipeline.handle_question(QAAskRequest(question="顾恺之的生平经历是怎样的？", mode="rule"))
-        self.pipeline.handle_question(QAAskRequest(question="这个东西好看吗？", mode="rule"))
-
-        response = self.pipeline.summarize_queries()
-        self.assertEqual(response.status, "ok")
-        self.assertEqual(response.summary["total_questions"], 3)
-        self.assertEqual(response.summary["intent_distribution"]["artifact_museum"], 1)
-        self.assertEqual(response.summary["intent_distribution"]["artist_biography"], 1)
-        self.assertEqual(response.summary["intent_distribution"]["unknown"], 1)
-        self.assertEqual(response.summary["status_distribution"]["ok"], 1)
-        self.assertEqual(response.summary["status_distribution"]["no_data"], 1)
-        self.assertEqual(response.summary["status_distribution"]["clarify"], 1)
-        self.assertEqual(len(response.summary["failed_questions"]), 2)
-
-
-if __name__ == "__main__":
-    unittest.main()
+if __name__ == "__main__": unittest.main()

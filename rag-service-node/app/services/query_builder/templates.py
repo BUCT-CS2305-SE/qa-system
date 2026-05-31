@@ -10,4 +10,5 @@ QUERY_TEMPLATES = {
     "dynasty_representative_query": "MATCH (d:Dynasty {name:$dynasty_name})<-[:BELONGS_TO_DYNASTY]-(a:Artifact) RETURN d.name AS dynasty, collect(a.name) AS artifacts LIMIT 10",
     "museum_count_query": "MATCH (m:Museum {name:$museum_name})<-[:COLLECTED_BY]-(a:Artifact) RETURN m.name AS museum, count(a) AS artifact_count",
     "recommended_artifacts_query": "MATCH (a:Artifact {name:$artifact_name}) RETURN a.name AS artifact",
+    "same_artist_works_query": "MATCH (a:Artifact)-[:CREATED_BY]->(p:Artist {name:$artist_name}) RETURN collect(a.name) AS works, p.name AS artist",
 }

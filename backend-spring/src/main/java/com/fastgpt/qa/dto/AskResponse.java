@@ -1,17 +1,35 @@
 package com.fastgpt.qa.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class AskResponse {
+
+    // --- new SRS-aligned fields ---
+
+    @JsonProperty("request_id")
+    private String requestId;
+
+    @JsonProperty("no_data")
+    private boolean noData;
+
+    @JsonProperty("sources")
+    private List<Source> sources = new ArrayList<>();
+
+    @JsonProperty("source")
+    private Source sourceItem;
+
+    // --- backward-compatible diagnostics fields ---
+
     private String status;
     private int code;
     private String intent;
     private String answer;
     private List<Fact> facts = new ArrayList<>();
-    private List<Source> source = new ArrayList<>();
 
     @JsonProperty("llm_note")
     private String llmNote;
@@ -20,7 +38,15 @@ public class AskResponse {
     @JsonProperty("trace_id")
     private String traceId;
 
+    // --- inner classes ---
+
     public static class Source {
+        @JsonProperty("source_name")
+        private String sourceName;
+
+        @JsonProperty("detail_url")
+        private String detailUrl;
+
         private String name;
         private String url;
 
@@ -31,8 +57,24 @@ public class AskResponse {
             this.url = url;
         }
 
+        public String getSourceName() {
+            return sourceName;
+        }
+
+        public void setSourceName(String sourceName) {
+            this.sourceName = sourceName;
+        }
+
+        public String getDetailUrl() {
+            return detailUrl;
+        }
+
+        public void setDetailUrl(String detailUrl) {
+            this.detailUrl = detailUrl;
+        }
+
         public String getName() {
-            return name;
+            return sourceName != null ? sourceName : name;
         }
 
         public void setName(String name) {
@@ -40,7 +82,7 @@ public class AskResponse {
         }
 
         public String getUrl() {
-            return url;
+            return detailUrl != null ? detailUrl : url;
         }
 
         public void setUrl(String url) {
@@ -108,10 +150,63 @@ public class AskResponse {
         }
     }
 
+    // --- constructors ---
+
     public AskResponse() {}
 
+    // --- convenient methods ---
+
     public boolean isNoData() {
-        return "no_data".equals(status) || status == null;
+        return noData || "no_data".equals(status) || status == null;
+    }
+
+    /**
+     * Returns the source list for backward compatibility.
+     * Prefers the new {@code sources} array; falls back to wrapping {@code sourceItem}.
+     */
+    @JsonIgnore
+    public List<Source> getSource() {
+        if (sources != null && !sources.isEmpty()) {
+            return sources;
+        }
+        if (sourceItem != null) {
+            return Collections.singletonList(sourceItem);
+        }
+        return new ArrayList<>();
+    }
+
+    // --- accessors ---
+
+    public String getRequestId() {
+        return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
+    }
+
+    public boolean getNoData() {
+        return noData;
+    }
+
+    public void setNoData(boolean noData) {
+        this.noData = noData;
+    }
+
+    public List<Source> getSources() {
+        return sources;
+    }
+
+    public void setSources(List<Source> sources) {
+        this.sources = sources;
+    }
+
+    public Source getSourceItem() {
+        return sourceItem;
+    }
+
+    public void setSourceItem(Source sourceItem) {
+        this.sourceItem = sourceItem;
     }
 
     public String getStatus() {
@@ -152,14 +247,6 @@ public class AskResponse {
 
     public void setFacts(List<Fact> facts) {
         this.facts = facts;
-    }
-
-    public List<Source> getSource() {
-        return source;
-    }
-
-    public void setSource(List<Source> source) {
-        this.source = source;
     }
 
     public String getLlmNote() {

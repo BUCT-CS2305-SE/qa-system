@@ -31,12 +31,14 @@ class QAPipeline:
         if understanding.status != "ok":
             self.logging_service.record_understanding_failure(trace_id, request.question, understanding)
             return QAAskResponse(
+                request_id=trace_id,
+                answer=understanding.fail_reason or "问题无法识别",
+                no_data=True,
+                sources=[],
+                facts=[],
                 status="clarify",
                 code=ERROR_CODE_UNRECOGNIZED_QUESTION,
                 intent=understanding.intent,
-                answer=understanding.fail_reason or "问题无法识别",
-                facts=[],
-                source=[],
                 llm_note=None,
                 confidence=understanding.confidence,
                 trace_id=trace_id,
@@ -45,12 +47,14 @@ class QAPipeline:
         if not understanding.entities:
             self.logging_service.record_entity_failure(trace_id, request.question, understanding)
             return QAAskResponse(
+                request_id=trace_id,
+                answer="未抽取到关键实体",
+                no_data=True,
+                sources=[],
+                facts=[],
                 status="clarify",
                 code=ERROR_CODE_ENTITY_NOT_FOUND,
                 intent=understanding.intent,
-                answer="未抽取到关键实体",
-                facts=[],
-                source=[],
                 llm_note=None,
                 confidence=understanding.confidence,
                 trace_id=trace_id,
@@ -62,25 +66,47 @@ class QAPipeline:
 
         if retrieval.status != "ok":
             return QAAskResponse(
+                request_id=trace_id,
+                answer="暂无相关数据",
+                no_data=True,
+                sources=[],
+                facts=[],
                 status="no_data",
                 code=ERROR_CODE_NO_DATA,
                 intent=understanding.intent,
-                answer="暂无相关数据",
-                facts=[],
-                source=[],
                 llm_note=None,
                 confidence=0.0,
                 trace_id=trace_id,
             )
 
-        generated = self.answer_service.generate(understanding, retrieval)
+        generated = self.answer_service.generate(understanding, retrieval, mode=request.mode)
+        # Map retrieved facts and sources to SRS fields
+        srs_facts = [fact.model_dump() for fact in retrieval.facts]
+        srs_sources = [
+            {"source_name": f.source_name, "detail_url": f.source_url} for f in retrieval.facts if f.source_name or f.source_url
+        ]
+        # de-duplicate sources
+        unique_sources = []
+        seen = set()
+        for s in srs_sources:
+            key = (s.get("source_name"), s.get("detail_url"))
+            if key not in seen:
+                seen.add(key)
+                unique_sources.append(s)
+
+        # Backward-compatible single source field for older clients/tests
+        first_source = unique_sources[0] if unique_sources else None
+
         return QAAskResponse(
+            request_id=trace_id,
+            answer=generated.answer,
+            no_data=False,
+            sources=unique_sources,
+            source=first_source,
+            facts=srs_facts,
             status="ok",
             code=ERROR_CODE_SUCCESS,
             intent=understanding.intent,
-            answer=generated.answer,
-            facts=[fact.model_dump() for fact in retrieval.facts],
-            source=generated.source,
             llm_note=generated.llm_note,
             confidence=generated.confidence,
             trace_id=trace_id,
