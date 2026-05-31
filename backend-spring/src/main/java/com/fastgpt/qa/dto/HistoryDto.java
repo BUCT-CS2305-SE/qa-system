@@ -9,8 +9,11 @@ public class HistoryDto {
     private String question;
     private String answer;
     private boolean noData;
-    private String sources; // raw JSON
-    private String facts; // raw JSON
+    private String sources;
+    private String facts;
+    private String intent;
+    private String status;
+    private double confidence;
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -75,6 +78,30 @@ public class HistoryDto {
 
     public void setFacts(String facts) {
         this.facts = facts;
+    }
+
+    public String getIntent() {
+        return intent;
+    }
+
+    public void setIntent(String intent) {
+        this.intent = intent;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(double confidence) {
+        this.confidence = confidence;
     }
 
     public LocalDateTime getCreatedAt() {

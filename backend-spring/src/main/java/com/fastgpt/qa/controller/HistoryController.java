@@ -34,6 +34,9 @@ public class HistoryController {
             d.setNoData(e.isNoData());
             d.setSources(e.getSources());
             d.setFacts(e.getFacts());
+            d.setIntent(e.getIntent());
+            d.setStatus(e.getStatus());
+            d.setConfidence(e.getConfidence());
             d.setCreatedAt(e.getCreatedAt());
             return d;
         }).collect(Collectors.toList());
@@ -56,6 +59,9 @@ public class HistoryController {
         d.setNoData(e.isNoData());
         d.setSources(e.getSources());
         d.setFacts(e.getFacts());
+        d.setIntent(e.getIntent());
+        d.setStatus(e.getStatus());
+        d.setConfidence(e.getConfidence());
         d.setCreatedAt(e.getCreatedAt());
         return ResponseEntity.ok(d);
     }

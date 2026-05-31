@@ -27,13 +27,22 @@ public class HistoryEntity {
     @Column(name = "no_data")
     private boolean noData;
 
+    @Column(name = "intent")
+    private String intent;
+
+    @Column(name = "status")
+    private String status;
+
+    @Column(name = "confidence")
+    private double confidence;
+
     @Lob
     @Column(name = "sources", columnDefinition = "TEXT")
-    private String sources; // JSON
+    private String sources;
 
     @Lob
     @Column(name = "facts", columnDefinition = "TEXT")
-    private String facts; // JSON
+    private String facts;
 
     @Lob
     @Column(name = "raw_response", columnDefinition = "TEXT")
@@ -45,7 +54,6 @@ public class HistoryEntity {
     public HistoryEntity() {
     }
 
-    // getters and setters
     public Long getId() {
         return id;
     }
@@ -92,6 +100,30 @@ public class HistoryEntity {
 
     public void setNoData(boolean noData) {
         this.noData = noData;
+    }
+
+    public String getIntent() {
+        return intent;
+    }
+
+    public void setIntent(String intent) {
+        this.intent = intent;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(double confidence) {
+        this.confidence = confidence;
     }
 
     public String getSources() {

@@ -5,7 +5,6 @@ import com.fastgpt.qa.dto.AskResponse;
 import com.fastgpt.qa.service.QaService;
 import com.fastgpt.qa.service.HistoryService;
 import com.fastgpt.qa.service.RagClient;
-import com.fastgpt.qa.service.KgClient;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
@@ -14,8 +13,6 @@ import org.springframework.stereotype.Service;
 import org.slf4j.MDC;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.UUID;
 
 @Service
 public class QaServiceImpl implements QaService {
@@ -25,94 +22,53 @@ public class QaServiceImpl implements QaService {
     private final RagClient ragClient;
     private final HistoryService historyService;
     private final MeterRegistry meterRegistry;
-    private final KgClient kgClient;
 
-    public QaServiceImpl(RagClient ragClient, HistoryService historyService, MeterRegistry meterRegistry, KgClient kgClient) {
+    public QaServiceImpl(RagClient ragClient, HistoryService historyService, MeterRegistry meterRegistry) {
         this.ragClient = ragClient;
         this.historyService = historyService;
         this.meterRegistry = meterRegistry;
-        this.kgClient = kgClient;
     }
 
     @Override
     public AskResponse ask(AskRequest request) {
         long start = System.nanoTime();
-        AskResponse resp = new AskResponse();
-        resp.setRequestId(UUID.randomUUID().toString());
-
-        // put in MDC
-        MDC.put("requestId", resp.getRequestId());
 
         String question = request.getQuestion();
         if (question == null || question.trim().isEmpty()) {
-            resp.setNoData(true);
+            AskResponse resp = new AskResponse();
+            resp.setStatus("no_data");
+            resp.setCode(2001);
             resp.setAnswer("暂无相关数据");
-            // save history
+            resp.setTraceId("N/A");
             historyService.save(request, resp);
-            MDC.clear();
             return resp;
         }
 
-        // 1) try KG
-        try {
-            long kgStart = System.nanoTime();
-            List<AskResponse.Fact> facts = kgClient.queryFacts(question);
-            long kgEnd = System.nanoTime();
-            if (!facts.isEmpty()) {
-                resp.setNoData(false);
-                resp.setAnswer("KG 命中，返回结构化 facts");
-                resp.setFacts(facts);
-                resp.getSources().add(new AskResponse.Source("KG", ""));
-                historyService.save(request, resp);
-                meterRegistry.counter("qa.responses", "type", "kg").increment();
-                Timer.builder("qa.kg.duration").register(meterRegistry).record(Duration.ofNanos(kgEnd - kgStart));
-                MDC.clear();
-                return resp;
-            }
-        } catch (Exception ex) {
-            logger.warn("kg query failed: {}", ex.getMessage());
-            meterRegistry.counter("qa.errors", "stage", "kg").increment();
-        }
-
-        // 2) call RAG
         try {
             Timer.Sample sample = Timer.start(meterRegistry);
-            AskResponse ragResp = ragClient.callRag(request.getQuestion(), request.getSessionId());
+            AskResponse resp = ragClient.callRag(question, request.getSessionId(), request.getMode());
             sample.stop(meterRegistry.timer("qa.rag.call.duration"));
 
-            if (ragResp != null && !ragResp.isNoData()) {
-                ragResp.setRequestId(resp.getRequestId());
-                historyService.save(request, ragResp);
-                meterRegistry.counter("qa.responses", "type", "rag").increment();
+            if (resp != null) {
+                MDC.put("traceId", resp.getTraceId());
+                historyService.save(request, resp);
+                meterRegistry.counter("qa.responses", "type", resp.getStatus() != null ? resp.getStatus() : "ok").increment();
                 MDC.clear();
-                return ragResp;
+                return resp;
             }
         } catch (Exception ex) {
             logger.error("error calling rag: {}", ex.getMessage());
             meterRegistry.counter("qa.errors", "stage", "rag_call").increment();
         }
 
-        // fallback mock logic
-        if (question.contains("年代") || question.contains("朝代")) {
-            resp.setAnswer("根据知识库，文物A约属唐代。");
-            resp.setNoData(false);
-            AskResponse.Fact f = new AskResponse.Fact("朝代", "唐代");
-            resp.getFacts().add(f);
-            AskResponse.Source s = new AskResponse.Source("示例博物馆", "https://example.org/artifact/1");
-            resp.getSources().add(s);
-            historyService.save(request, resp);
-            meterRegistry.counter("qa.responses", "type", "mock").increment();
-            MDC.clear();
-            return resp;
-        }
-
-        resp.setAnswer("暂无相关数据");
-        resp.setNoData(true);
-        historyService.save(request, resp);
-        meterRegistry.counter("qa.responses", "type", "no_data").increment();
-        MDC.clear();
-        long end = System.nanoTime();
-        Timer.builder("qa.request.duration").register(meterRegistry).record(Duration.ofNanos(end - start));
-        return resp;
+        AskResponse fallback = new AskResponse();
+        fallback.setStatus("no_data");
+        fallback.setCode(5004);
+        fallback.setAnswer("问答服务暂时不可用，请稍后重试。");
+        fallback.setTraceId("N/A");
+        historyService.save(request, fallback);
+        meterRegistry.counter("qa.responses", "type", "error").increment();
+        Timer.builder("qa.request.duration").register(meterRegistry).record(Duration.ofNanos(System.nanoTime() - start));
+        return fallback;
     }
 }

@@ -27,13 +27,16 @@ public class HistoryServiceImpl implements HistoryService {
     @Override
     public HistoryEntity save(AskRequest req, AskResponse resp) {
         HistoryEntity e = new HistoryEntity();
-        e.setRequestId(resp.getRequestId());
+        e.setRequestId(resp.getTraceId());
         e.setSessionId(req.getSessionId());
         e.setQuestion(req.getQuestion());
         e.setAnswer(resp.getAnswer());
         e.setNoData(resp.isNoData());
+        e.setIntent(resp.getIntent());
+        e.setStatus(resp.getStatus());
+        e.setConfidence(resp.getConfidence());
         try {
-            e.setSources(objectMapper.writeValueAsString(resp.getSources()));
+            e.setSources(objectMapper.writeValueAsString(resp.getSource()));
             e.setFacts(objectMapper.writeValueAsString(resp.getFacts()));
             e.setRawResponse(objectMapper.writeValueAsString(resp));
         } catch (JsonProcessingException ex) {

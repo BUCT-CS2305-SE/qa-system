@@ -1,3 +1,7 @@
+# Ignore node_modules everywhere
+node_modules/
+**/node_modules/
+
 # Logs
 logs
 *.log
@@ -7,39 +11,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-.coverage.*
-htmlcov/
-
-# Virtual environments
-.venv/
-venv/
-env/
-
-# Java / Maven
-target/
-
-node_modules
+# Build outputs
 dist
 dist-ssr
-*.local
-package-lock.json
-
-# Additional ignores for frontend development
-# caches and build output
 .cache/
 .vite/
 coverage/
 
-# env files (local secrets)
+# Local files
+*.local
 .env
 .env.local
 .env.*.local
@@ -48,19 +28,57 @@ coverage/
 **/*.tsbuildinfo
 node_modules/.tmp/
 
-# platform files
+# Python (rag-service-node)
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+.envrc
+.pytest_cache/
+.mypy_cache/
+
+# Java / Maven / Gradle (backend-spring)
+target/
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+.build/
+.mvn/
+.classpath
+.project
+.settings/
+
+# Runtime / logs
+*.pid
+*.seed
+*.pid.lock
+
+# Local DB
+*.db
+*.sqlite
+*.sqlite3
+
+# Editor swap / backup
+*~
+*.swp
+
+# Platform files
 Thumbs.db
+.DS_Store
 
-# lockfiles should be committed (do NOT ignore pnpm-lock.yaml)
-
-# Editor directories and files
-.vs/
+# Editor directories and files (allow recommended VSCode extensions file)
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+
+# Node lockfiles: ensure pnpm lock is committed; ignore other lock files
+package-lock.json
+yarn.lock
+# DO NOT ignore pnpm-lock.yaml
+
+# End of file

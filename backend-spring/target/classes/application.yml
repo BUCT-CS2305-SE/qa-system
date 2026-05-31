@@ -16,5 +16,8 @@ logging:
     com.fastgpt: DEBUG
 qa:
   rag:
-    url: http://localhost:8000/api/qa/ask
+    ask-url: http://localhost:8000/api/qa/ask
+    feedback-url: http://localhost:8000/api/qa/feedback
+    summary-url: http://localhost:8000/api/qa/summary
     timeoutMs: 30000
+    retries: 1

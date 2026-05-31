@@ -1,4 +1,4 @@
-import { askBackend } from '@/api/backendClient';
+import { askBackend, fetchHistory } from '@/api/backendClient';
 
 export type Source = { source_name: string; detail_url?: string };
 export type Fact = { key: string; value: string; evidence?: string };
@@ -14,8 +14,8 @@ export type QAResponse = {
   llm_note?: string | null;
 };
 
-export async function ask(question: string, _mode: string = 'auto'): Promise<QAResponse> {
-  const response = await askBackend(question);
+export async function ask(question: string, sessionId?: string, _mode: string = 'auto'): Promise<QAResponse> {
+  const response = await askBackend(question, sessionId);
   if (!response) {
     return {
       answer: '问答服务暂时不可用，请稍后重试。',
@@ -46,17 +46,20 @@ export async function ask(question: string, _mode: string = 'auto'): Promise<QAR
   };
 }
 
-export async function getHistory(_limit = 20) {
-  return Promise.resolve([
-    { id: 'local-session', title: '当前会话', last: '后端已接入，可直接测试问答链路' }
-  ]);
-}
+export type HistoryItem = { id: string; title: string; last: string };
 
-export async function getSource(id: string) {
-  return Promise.resolve({
-    id,
-    name: '来源详情',
-    url: id,
-    excerpt: '当前版本直接展示后端返回的来源链接。'
-  });
+export async function getHistory(sessionId: string, _limit = 20): Promise<HistoryItem[]> {
+  try {
+    const items = await fetchHistory(sessionId, _limit);
+    if (items.length === 0) {
+      return [{ id: sessionId, title: '当前会话', last: '尚无历史记录，开始提问吧' }];
+    }
+    return items.map((it) => ({
+      id: String(it.id),
+      title: it.question.length > 30 ? it.question.substring(0, 30) + '...' : it.question,
+      last: it.answer.length > 40 ? it.answer.substring(0, 40) + '...' : it.answer
+    }));
+  } catch {
+    return [{ id: sessionId, title: '当前会话', last: '后端已接入，可直接测试问答链路' }];
+  }
 }
