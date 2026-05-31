@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.core.config import settings
 from app.models.api import FeedbackRequest, FeedbackResponse, QAAskRequest, QAAskResponse, QASummaryResponse
 from app.models.domain import FeedbackRecord
 from app.models.errors import (
@@ -11,8 +12,10 @@ from app.models.errors import (
     ERROR_CODE_UNRECOGNIZED_QUESTION,
 )
 from app.services.answer_generation.service import AnswerGenerationService
+from app.services.input_understanding.context_resolver import ContextResolver
 from app.services.input_understanding.service import InputUnderstandingService
 from app.services.kg_retrieval.service import KGRetrievalService
+from app.services.llm.service import LlmService
 from app.services.logging_feedback.service import LoggingFeedbackService
 from app.services.query_builder.service import QueryBuilderService
 
@@ -24,12 +27,37 @@ class QAPipeline:
         self.retrieval_service = KGRetrievalService()
         self.answer_service = AnswerGenerationService()
         self.logging_service = LoggingFeedbackService()
+        self.context_resolver = ContextResolver()
 
     def handle_question(self, request: QAAskRequest) -> QAAskResponse:
         trace_id = self._trace_id()
         understanding = self.understanding_service.understand(request.question, request.session_id)
-        if understanding.status != "ok":
+
+        # ── Unknown intent → try LLM chat fallback ──────────────
+        if understanding.intent == "unknown":
             self.logging_service.record_understanding_failure(trace_id, request.question, understanding)
+
+            if settings.llm_available:
+                try:
+                    history = self.context_resolver.get_recent(request.session_id)
+                    chat_answer = self.answer_service.llm.chat(request.question, history)
+                    self._record_conversation(request.session_id, request.question, chat_answer, understanding)
+                    return QAAskResponse(
+                        request_id=trace_id,
+                        answer=chat_answer,
+                        no_data=False,
+                        sources=[],
+                        facts=[],
+                        status="ok",
+                        code=ERROR_CODE_SUCCESS,
+                        intent="chat",
+                        llm_note=f"本回答由 {settings.llm_model} 生成",
+                        confidence=0.8,
+                        trace_id=trace_id,
+                    )
+                except Exception:
+                    pass
+
             return QAAskResponse(
                 request_id=trace_id,
                 answer=understanding.fail_reason or "问题无法识别",
@@ -44,6 +72,7 @@ class QAPipeline:
                 trace_id=trace_id,
             )
 
+        # ── Entity not found ────────────────────────────────────
         if not understanding.entities:
             self.logging_service.record_entity_failure(trace_id, request.question, understanding)
             return QAAskResponse(
@@ -60,10 +89,12 @@ class QAPipeline:
                 trace_id=trace_id,
             )
 
+        # ── KG retrieval ────────────────────────────────────────
         query_plan = self.query_builder.build(understanding)
         retrieval = self.retrieval_service.retrieve(query_plan.template_name, query_plan.query_text, query_plan.parameters)
         self.logging_service.record_query(trace_id, request.question, understanding, query_plan, retrieval)
 
+        # ── No data ─────────────────────────────────────────────
         if retrieval.status != "ok":
             return QAAskResponse(
                 request_id=trace_id,
@@ -79,14 +110,15 @@ class QAPipeline:
                 trace_id=trace_id,
             )
 
+        # ── Generate answer ─────────────────────────────────────
         generated = self.answer_service.generate(understanding, retrieval, mode=request.mode)
-        # Map retrieved facts and sources to SRS fields
+
         srs_facts = [fact.model_dump() for fact in retrieval.facts]
         srs_sources = [
-            {"source_name": f.source_name, "detail_url": f.source_url} for f in retrieval.facts if f.source_name or f.source_url
+            {"source_name": f.source_name, "detail_url": f.source_url}
+            for f in retrieval.facts if f.source_name or f.source_url
         ]
-        # de-duplicate sources
-        unique_sources = []
+        unique_sources: list[dict] = []
         seen = set()
         for s in srs_sources:
             key = (s.get("source_name"), s.get("detail_url"))
@@ -94,8 +126,9 @@ class QAPipeline:
                 seen.add(key)
                 unique_sources.append(s)
 
-        # Backward-compatible single source field for older clients/tests
         first_source = unique_sources[0] if unique_sources else None
+
+        self._record_conversation(request.session_id, request.question, generated.answer, understanding)
 
         return QAAskResponse(
             request_id=trace_id,
@@ -127,3 +160,13 @@ class QAPipeline:
 
     def _trace_id(self) -> str:
         return datetime.now().strftime("t%Y%m%d_%H%M%S")
+
+    def _record_conversation(self, session_id: str | None, question: str, answer: str, understanding) -> None:
+        if not session_id:
+            return
+        extracted: dict[str, str] = {}
+        for etype, mentions in (understanding.entities or {}).items():
+            if mentions:
+                extracted[etype] = mentions[0].canonical_name
+        self.context_resolver.record_turn(session_id, "user", question, extracted)
+        self.context_resolver.record_turn(session_id, "assistant", answer, extracted)

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     context_window: int = 5
 
-    model_config = SettingsConfigDict(env_prefix="qa_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="qa_", extra="ignore")
 
     @property
     def llm_available(self) -> bool:
