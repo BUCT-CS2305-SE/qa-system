@@ -25,12 +25,27 @@ export type BackendFeedbackResponse = {
   message: string;
 };
 
-const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000';
+export type BackendHistoryItem = {
+  id: number;
+  requestId: string;
+  sessionId: string;
+  question: string;
+  answer: string;
+  noData: boolean;
+  sources: string;
+  facts: string;
+  intent: string;
+  status: string;
+  confidence: number;
+  createdAt: string;
+};
+
+const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8081';
 
 export async function askBackend(
   question: string,
   sessionId?: string,
-  timeoutMs = 15000
+  timeoutMs = 30000
 ): Promise<BackendAskResponse | null> {
   const controller = new AbortController();
   const timerId = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -41,7 +56,7 @@ export async function askBackend(
       body: JSON.stringify({
         question,
         session_id: sessionId,
-        mode: 'rule'
+        mode: 'auto'
       }),
       signal: controller.signal
     });
@@ -85,5 +100,24 @@ export async function sendBackendFeedback(
   } catch (error: unknown) {
     console.error('feedback request error', error);
     return null;
+  }
+}
+
+export async function fetchHistory(
+  sessionId: string,
+  limit = 20
+): Promise<BackendHistoryItem[]> {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/qa/history?sessionId=${encodeURIComponent(sessionId)}&limit=${limit}`
+    );
+    if (!response.ok) {
+      console.error('history fetch failed', response.status);
+      return [];
+    }
+    return (await response.json()) as BackendHistoryItem[];
+  } catch (error: unknown) {
+    console.error('history fetch error', error);
+    return [];
   }
 }
