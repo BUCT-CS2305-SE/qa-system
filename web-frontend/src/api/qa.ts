@@ -8,7 +8,7 @@ export type QAResponse = {
 };
 
 // mock ask implementation — 可替换为真实 fetch
-export async function ask(question: string, mode: string = 'auto'): Promise<QAResponse> {
+export async function ask(question: string): Promise<QAResponse> {
   return new Promise((resolve) => {
     setTimeout(() => {
       if (!question || /无|没有|不知道/.test(question)) {
@@ -33,7 +33,7 @@ export async function ask(question: string, mode: string = 'auto'): Promise<QARe
   });
 }
 
-export async function getHistory(limit = 20) {
+export async function getHistory() {
   return Promise.resolve([
     { id: 'h1', title: '默认会话', last: '关于青铜器铭文的提问' },
     { id: 'h2', title: '敦煌研究', last: '敦煌资料的年代判断' }

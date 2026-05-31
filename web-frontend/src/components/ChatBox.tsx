@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type Msg = { role: 'user' | 'assistant'; text: string; meta?: any };
 
 export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
@@ -24,8 +22,8 @@ export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
                     <div key={idx} className="fgQuoteItem">
                       <div className="fgQuoteTag">doc</div>
                       <div className="fgQuoteBody">
-                        <div className="fgQuoteName">{s.source_name}</div>
-                        <div className="fgQuoteDesc">{s.detail_url}</div>
+                        <div className="fgQuoteName">{s.sourceName}</div>
+                        <div className="fgQuoteDesc">{s.detailUrl}</div>
                       </div>
                     </div>
                   ))}

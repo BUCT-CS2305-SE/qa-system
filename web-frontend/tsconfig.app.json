@@ -27,8 +27,7 @@
       "@/*": ["src/*"]
     },
 
-    /* Silence deprecation warning for baseUrl until TS7 migration */
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src"]
 }

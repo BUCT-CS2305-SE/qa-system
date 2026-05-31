@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type ChatHeaderProps = {
   title?: string;
   desc?: string;

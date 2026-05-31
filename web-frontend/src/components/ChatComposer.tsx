@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function ChatComposer({ value, onChange, onSend, sending }: any) {
   return (
     <footer className="fgComposer">

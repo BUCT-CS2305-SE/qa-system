@@ -1,9 +1,9 @@
-export type Source = { source_name: string; detail_url?: string };
-export type Fact = { key: string; value: string; evidence?: string };
+export type Source = { sourceName: string; detailUrl?: string };
+export type Fact = { key: string; value: string };
 export type QAResponse = {
-  request_id?: string;
+  requestId?: string;
   answer: string;
-  no_data?: boolean;
+  noData?: boolean;
   sources?: Source[];
   facts?: Fact[];
 };

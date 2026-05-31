@@ -7,7 +7,7 @@ import SideHistory from './components/SideHistory';
 import ChatBox from './components/ChatBox';
 import ChatComposer from './components/ChatComposer';
 import { useChat } from './hooks/useChat';
-import { getHistory } from './api/qa';
+import { fetchHistory } from './api/backendClient';
 
 export type HistoryItem = { id: string; title: string; last: string };
 
@@ -15,11 +15,20 @@ export default function App() {
   const [question, setQuestion] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  const { messages, send, loading } = useChat();
+  const { messages, send, loading, sessionId } = useChat();
 
   React.useEffect(() => {
-    getHistory().then((h: HistoryItem[]) => setHistory(h));
-  }, []);
+    fetchHistory(sessionId).then((list) => {
+      if (list && list.length > 0) {
+        const items: HistoryItem[] = list.map((h) => ({
+          id: String(h.id),
+          title: h.question.length > 30 ? h.question.slice(0, 30) + '...' : h.question,
+          last: h.answer.length > 50 ? h.answer.slice(0, 50) + '...' : h.answer
+        }));
+        setHistory(items);
+      }
+    });
+  }, [sessionId]);
 
   async function handleAsk() {
     const q = question.trim();
@@ -35,7 +44,7 @@ export default function App() {
           <div className="fgBrandLogo" />
           <div>
             <div className="fgBrandTitle">文物问答子系统</div>
-            <div className="fgBrandSub">演示模式（UI 占位）</div>
+            <div className="fgBrandSub">Spring Boot + React 联调模式</div>
           </div>
         </div>
 
@@ -44,14 +53,14 @@ export default function App() {
         <div className="fgSideSection">
           <div className="fgSideSectionTitle">提示</div>
           <div className="fgSideHint">
-            页面为占位 UI，接口契约与 mock 在 <code>src/api/qa.ts</code>
+            后端 API 地址：<code>/api/qa/ask</code>
           </div>
         </div>
 
         <div className="fgSideFooter">
           <div className="fgSideFooterItem">
             <span className="dot online"></span>
-            <span>UI：静态占位</span>
+            <span>Session: {sessionId.slice(0, 12)}...</span>
           </div>
         </div>
       </aside>
@@ -59,7 +68,7 @@ export default function App() {
       <main className="fgMain">
         <ChatHeader
           title="文物知识问答"
-          desc="基于 KG + RAG（演示）"
+          desc="基于 KG + RAG（Spring Boot 后端）"
           badges={['Neo4j', 'pgvector']}
         />
 
