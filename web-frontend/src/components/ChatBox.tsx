@@ -1,13 +1,11 @@
-import React from 'react';
-
 export type Msg = { role: 'user' | 'assistant'; text: string; meta?: any };
 
-export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
+export default function ChatBox({ messages = [], loading = false }: { messages?: Msg[]; loading?: boolean }) {
   return (
     <section className="fgChat" role="log">
       <div className="fgChatInner" style={{ maxWidth: 980, margin: '0 auto' }}>
         {messages.length === 0 ? (
-          <div className="fgQuoteDesc" style={{ padding: 12 }}>
+          <div className="fgQuoteDesc center">
             请输入问题开始对话
           </div>
         ) : null}
@@ -18,7 +16,8 @@ export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
 
             <div className={`fgBubble ${m.role === 'user' ? 'user' : ''}`}>
               <div className="fgBubbleText">{m.text}</div>
-              {m.meta && m.meta.sources && (
+
+              {m.meta?.sources && m.meta.sources.length > 0 && (
                 <div className="fgQuoteList">
                   {m.meta.sources.map((s: any, idx: number) => (
                     <div key={idx} className="fgQuoteItem">
@@ -26,12 +25,7 @@ export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
                       <div className="fgQuoteBody">
                         <div className="fgQuoteName">{s.source_name}</div>
                         {s.detail_url ? (
-                          <a
-                            className="fgQuoteDesc"
-                            href={s.detail_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
+                          <a className="fgQuoteDesc" href={s.detail_url} target="_blank" rel="noreferrer">
                             {s.detail_url}
                           </a>
                         ) : (
@@ -43,7 +37,7 @@ export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
                 </div>
               )}
 
-              {m.meta && m.meta.facts && m.meta.facts.length > 0 && (
+              {m.meta?.facts && m.meta.facts.length > 0 && (
                 <div className="fgQuoteList">
                   {m.meta.facts.map((fact: any, idx: number) => (
                     <div key={`fact-${idx}`} className="fgQuoteItem">
@@ -57,12 +51,29 @@ export default function ChatBox({ messages = [] }: { messages?: Msg[] }) {
                 </div>
               )}
 
+              {m.meta?.llm_note && (
+                <div className="fgBubbleMeta" style={{ fontStyle: 'italic' }}>
+                  {m.meta.llm_note}
+                </div>
+              )}
+
               <div className="fgBubbleMeta">{m.role === 'user' ? '你' : '助手'}</div>
             </div>
 
             {m.role === 'user' ? <div className="fgAvatar user" /> : null}
           </div>
         ))}
+
+        {loading && (
+          <div className="fgMsgRow">
+            <div className="fgAvatar bot" />
+            <div className="fgBubble">
+              <div className="typing-indicator">
+                <span /><span /><span />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

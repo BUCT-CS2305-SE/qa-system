@@ -1,22 +1,24 @@
-export type BackendSource = { name: string; url: string };
+export type BackendSource = { source_name?: string; detail_url?: string };
 export type BackendFact = {
-  subject: string;
-  predicate: string;
-  object: string;
+  subject?: string;
+  predicate?: string;
+  object?: string;
   source_name?: string;
   source_url?: string;
 };
 
 export type BackendAskResponse = {
-  status: 'ok' | 'clarify' | 'no_data';
-  code: number;
-  intent: string;
-  answer: string;
-  facts: BackendFact[];
-  source: BackendSource[];
+  request_id?: string;
+  trace_id?: string;
+  status?: 'ok' | 'clarify' | 'no_data' | 'error';
+  code?: number;
+  intent?: string;
+  answer?: string;
+  facts?: BackendFact[];
+  sources?: BackendSource[];
+  source?: BackendSource | null;
   llm_note?: string | null;
-  confidence: number;
-  trace_id: string;
+  confidence?: number;
 };
 
 export type BackendFeedbackResponse = {
@@ -45,25 +47,29 @@ const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8081';
 export async function askBackend(
   question: string,
   sessionId?: string,
-  timeoutMs = 30000
+  timeoutMs = 30000,
+  extra?: Record<string, unknown>
 ): Promise<BackendAskResponse | null> {
   const controller = new AbortController();
   const timerId = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
+    const bodyPayload = {
+      question,
+      session_id: sessionId,
+      mode: 'auto',
+      ...(extra || {})
+    };
     const response = await fetch(`${BASE_URL}/api/qa/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question,
-        session_id: sessionId,
-        mode: 'auto'
-      }),
+      body: JSON.stringify(bodyPayload),
       signal: controller.signal
     });
     if (!response.ok) {
       console.error('ask failed', response.status, await response.text());
       return null;
     }
+    // return raw json; calling code will adapt fields
     return (await response.json()) as BackendAskResponse;
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -104,20 +110,52 @@ export async function sendBackendFeedback(
 }
 
 export async function fetchHistory(
-  sessionId: string,
-  limit = 20
+  _sessionId: string,
+  _limit = 20
 ): Promise<BackendHistoryItem[]> {
   try {
-    const response = await fetch(
-      `${BASE_URL}/api/qa/history?sessionId=${encodeURIComponent(sessionId)}&limit=${limit}`
-    );
+    // backend currently exposes summary rather than per-session history; return empty list to avoid 404
+    const response = await fetch(`${BASE_URL}/api/qa/summary`);
     if (!response.ok) {
-      console.error('history fetch failed', response.status);
+      console.warn('history/summary fetch failed', response.status);
       return [];
     }
-    return (await response.json()) as BackendHistoryItem[];
+    // If summary exists, we don't have a compatible history format yet - return empty array
+    return [];
   } catch (error: unknown) {
     console.error('history fetch error', error);
     return [];
+  }
+}
+
+// 调用外部 AI 用于润色（API URL 与 KEY 由 Vite 环境变量配置）
+export async function callAiPolish(payload: { question: string; answer?: string; facts?: BackendFact[]; sources?: BackendSource[] }, timeoutMs = 20000): Promise<string | null> {
+  const aiUrl = import.meta.env.VITE_AI_API_URL;
+  if (!aiUrl) {
+    return null;
+  }
+  const apiKey = import.meta.env.VITE_AI_API_KEY;
+  try {
+    const controller = new AbortController();
+    const timerId = window.setTimeout(() => controller.abort(), timeoutMs);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    const resp = await fetch(aiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    window.clearTimeout(timerId);
+    if (!resp.ok) {
+      console.error('AI polish call failed', resp.status, await resp.text());
+      return null;
+    }
+    const data = await resp.json();
+    // expect data to contain { text: 'polished answer' } or similar; caller will handle null
+    return data.text || data.result || null;
+  } catch (e) {
+    console.error('AI polish error', e);
+    return null;
   }
 }

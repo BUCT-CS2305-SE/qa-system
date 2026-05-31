@@ -1,7 +1,7 @@
-import { askBackend, fetchHistory } from '@/api/backendClient';
+import { askBackend, fetchHistory, callAiPolish } from '@/api/backendClient';
 
-export type Source = { source_name: string; detail_url?: string };
-export type Fact = { key: string; value: string; evidence?: string };
+export type Source = { source_name?: string; detail_url?: string };
+export type Fact = { key?: string; value?: string; evidence?: string };
 export type QAResponse = {
   request_id?: string;
   answer: string;
@@ -14,8 +14,22 @@ export type QAResponse = {
   llm_note?: string | null;
 };
 
-export async function ask(question: string, sessionId?: string, _mode: string = 'auto'): Promise<QAResponse> {
-  const response = await askBackend(question, sessionId);
+function classifyQuestion(question: string): string {
+  const q = question.toLowerCase();
+  if (/图片|照片|以图搜图|图像|image|photo/.test(q)) return 'image_search';
+  if (/尺寸|大小|长|高|宽|cm|mm/.test(q)) return 'artifact_dimensions';
+  if (/哪家|在哪|收藏|现藏|在哪里|博物馆/.test(q)) return 'artifact_museum';
+  if (/材质|材料|材质是/.test(q)) return 'artifact_material';
+  if (/作者|画家|是谁|author|artist/.test(q)) return 'painting_author';
+  return 'general';
+}
+
+export async function ask(question: string, sessionId?: string): Promise<QAResponse> {
+  const intent = classifyQuestion(question);
+  // choose mode: prefer rule for specific intents, auto for general QA
+  const mode = intent === 'general' ? 'auto' : 'rule';
+
+  const response = await askBackend(question, sessionId, 30000, { intent, mode });
   if (!response) {
     return {
       answer: '问答服务暂时不可用，请稍后重试。',
@@ -26,20 +40,30 @@ export async function ask(question: string, sessionId?: string, _mode: string = 
     };
   }
 
+  const sources = (response.sources || (response.source ? [response.source] : [])) as Source[];
+  type BackendFact = { predicate?: string; key?: string; object?: string; value?: string; source_name?: string; subject?: string };
+  const facts = (response.facts || []) as BackendFact[];
+
+  let answerText = response.answer || '';
+
+  // 如果配置了外部 AI，则用其对问答结果进行润色
+  try {
+    const polished = await callAiPolish({ question, answer: answerText, facts: response.facts || [], sources: sources });
+    if (polished) {
+      answerText = polished;
+    }
+  } catch (e) {
+    // 忽略润色错误，返回原始答案
+    console.warn('AI polish failed', e);
+  }
+
   return {
-    request_id: response.trace_id,
-    answer: response.answer,
+    request_id: response.request_id || response.trace_id,
+    answer: answerText,
     no_data: response.status === 'no_data',
-    sources: response.source.map((item) => ({
-      source_name: item.name,
-      detail_url: item.url
-    })),
-    facts: response.facts.map((item) => ({
-      key: item.predicate,
-      value: item.object,
-      evidence: item.source_name ?? item.subject
-    })),
-    intent: response.intent,
+    sources: sources.map((item) => ({ source_name: item.source_name, detail_url: item.detail_url })),
+    facts: facts.map((item) => ({ key: item.predicate || item.key, value: item.object || item.value, evidence: item.source_name || item.subject })),
+    intent: response.intent || intent,
     status: response.status,
     confidence: response.confidence,
     llm_note: response.llm_note
@@ -51,7 +75,7 @@ export type HistoryItem = { id: string; title: string; last: string };
 export async function getHistory(sessionId: string, _limit = 20): Promise<HistoryItem[]> {
   try {
     const items = await fetchHistory(sessionId, _limit);
-    if (items.length === 0) {
+    if (!items || items.length === 0) {
       return [{ id: sessionId, title: '当前会话', last: '尚无历史记录，开始提问吧' }];
     }
     return items.map((it) => ({
