@@ -54,8 +54,13 @@ class InputUnderstandingService:
             "recommended_artifacts",
             "painting_author",
         }
+        artist_intents = {"artist_biography", "same_artist_works"}
+
         if intent in artifact_intents and not entities.get("artifact"):
             return self._infer_artifact_entity(normalized, entities, intent)
+
+        if intent in artist_intents and not entities.get("artist"):
+            return self._infer_artist_entity(normalized, entities, intent)
 
         if intent == "museum_count" and not entities.get("museum"):
             return self._infer_museum_entity(normalized, entities)
@@ -74,6 +79,7 @@ class InputUnderstandingService:
         "recommended_artifacts": ["related", "recommend", "similar", "like this"],
         "dynasty_representative_artifacts": ["representative", "artifacts of", "artifacts from"],
         "artist_biography": ["biography", "life of", "who is", "tell me about"],
+        "same_artist_works": ["other works", "same artist", "also painted", "also created", "more by", "works by", "同作者", "作品"],
     }
 
     def _strip_english_keywords(self, text: str, intent: str) -> str:
@@ -144,6 +150,38 @@ class InputUnderstandingService:
         inferred_entities["artifact"] = [
             EntityMention(
                 entity_type="artifact",
+                canonical_name=candidate,
+                matched_text=candidate,
+                confidence=0.65,
+            )
+        ]
+        return inferred_entities
+
+    def _infer_artist_entity(self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = "") -> dict[str, list[EntityMention]]:
+        candidate = normalized
+        artist_patterns = [
+            r"同作者的作品有哪些\??$",
+            r"还有哪些作品\??$",
+            r"还画了什么\??$",
+            r"还创作了什么\??$",
+            r"的生平经历是怎样的\??$",
+            r"的生平是怎样的\??$",
+            r"是谁\??$",
+            r"的生平\??$",
+            r"的介绍\??$",
+        ]
+        for pattern in artist_patterns:
+            candidate = re.sub(pattern, "", candidate)
+
+        candidate = candidate.strip(" ?,.。，；：!！")
+        candidate = self._strip_english_keywords(candidate, intent)
+        if not candidate:
+            return entities
+
+        inferred_entities = dict(entities)
+        inferred_entities["artist"] = [
+            EntityMention(
+                entity_type="artist",
                 canonical_name=candidate,
                 matched_text=candidate,
                 confidence=0.65,

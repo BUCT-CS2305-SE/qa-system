@@ -87,4 +87,12 @@ MOCK_RESULTS = {
             "source_url": "https://www.clevelandart.org",
         }
     ],
+    "same_artist_works_query": [
+        {
+            "artist": "Zhang Zeduan",
+            "works": ["Along the River During the Qingming Festival", "Spring Festival on the River", "Dragon Boat Race"],
+            "source_name": "The Palace Museum",
+            "source_url": "https://www.dpm.org.cn",
+        }
+    ],
 }

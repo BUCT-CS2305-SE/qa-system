@@ -54,6 +54,9 @@ class KGRetrievalService:
             if template_name == "museum_count_query":
                 return self._query_museum_count(parameters)
 
+            if template_name == "same_artist_works_query":
+                return self._query_same_artist_works(parameters)
+
         except Exception as error:
             if settings.graph_backend == "remote":
                 return RetrievalResult(status="no_data", fail_reason=f"知识图谱接口调用失败: {error}")
@@ -339,6 +342,44 @@ class KGRetrievalService:
         facts = [
             RetrievedFact(subject=artifact, predicate="artist", object=str(artist),
                           source_name=source_name, source_url=source_url),
+        ]
+        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
+
+    # ── Same artist works (via search API) ──────────────────────
+
+    def _query_same_artist_works(self, parameters: dict[str, object]) -> RetrievalResult | None:
+        artist_name = str(parameters.get("artist_name", "")).strip()
+        if not artist_name:
+            return RetrievalResult(status="no_data", fail_reason="缺少作者名称")
+
+        search_payload = self._get_json(
+            f"/api/search?q={urllib.parse.quote(artist_name)}&page=1&page_size=10&lang=zh")
+        items = search_payload.get("data", []) if isinstance(search_payload, dict) else []
+        work_names = [str(item.get("name", "")) for item in items if item.get("name")]
+
+        if not work_names:
+            return (
+                None if settings.graph_backend == "hybrid"
+                else RetrievalResult(status="no_data", fail_reason="未找到该作者的其他作品")
+            )
+
+        source_name = str(items[0].get("museum", "")) if items else ""
+        source_url = str(items[0].get("detail_url", "")) if items else ""
+
+        raw_record = {
+            "artist": artist_name,
+            "works": work_names,
+            "source_name": source_name or "中国海外流失文物知识图谱 API",
+            "source_url": source_url or f"{settings.kg_api_base_url}/docs",
+        }
+        facts = [
+            RetrievedFact(
+                subject=artist_name,
+                predicate="works",
+                object="、".join(work_names),
+                source_name=raw_record["source_name"],
+                source_url=raw_record["source_url"],
+            )
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 

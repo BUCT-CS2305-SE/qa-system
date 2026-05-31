@@ -64,5 +64,11 @@
     "required_entity": "museum",
     "template_name": "museum_count_query",
     "keywords": ["收藏了多少件", "多少件中国文物", "一共有多少件", "收藏了多少", "馆藏", "count", "how many", "collection size"]
+  },
+  {
+    "intent": "same_artist_works",
+    "required_entity": "artist",
+    "template_name": "same_artist_works_query",
+    "keywords": ["同作者作品", "同一作者", "还有哪些作品", "还画了什么", "还创作了什么", "其他作品", "other works", "same artist", "also painted", "also created", "more by", "works by"]
   }
 ]

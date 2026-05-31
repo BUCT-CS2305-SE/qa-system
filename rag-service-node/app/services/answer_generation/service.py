@@ -99,4 +99,9 @@ class AnswerGenerationService:
             recommendations = record.get("recommendations", [])
             if isinstance(recommendations, list) and recommendations:
                 return f"如果你关注{record['artifact']}，还可以继续了解：{'、'.join(str(item) for item in recommendations)}。"
+        if intent == "same_artist_works":
+            works = record.get("works", [])
+            if isinstance(works, list) and works:
+                return f"{record['artist']}的其他作品有：{'、'.join(str(w) for w in works)}。"
+            return f"{record.get('artist', '该作者')}的其他作品信息暂无。"
         return "已检索到相关事实。"
