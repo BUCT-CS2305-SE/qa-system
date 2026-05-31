@@ -1,3 +1,4 @@
+import { useState } from 'react';
 
 export type ConvItem = {
   id: string;
@@ -15,6 +16,23 @@ type Props = {
 };
 
 export default function SideHistory({ conversations, activeId, onSelect, onNew, onDelete }: Props) {
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [comment, setComment] = useState('');
+  const [sent, setSent] = useState(false);
+
+  async function submitFeedback() {
+    if (!comment.trim()) return;
+    try {
+      await fetch((import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8081') + '/api/qa/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trace_id: 'general_feedback', helpful: false, comment }),
+      });
+      setSent(true);
+      setTimeout(() => { setShowFeedback(false); setSent(false); setComment(''); }, 1500);
+    } catch {}
+  }
+
   return (
     <>
       <div className="sidebar-header">
@@ -38,7 +56,7 @@ export default function SideHistory({ conversations, activeId, onSelect, onNew, 
       <div className="sidebar-body">
         <div className="sidebar-section-title">对话历史</div>
         {conversations.length === 0 ? (
-          <div style={{ padding: '12px 6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+          <div style={{ padding: '12px 6px', fontSize: '12px', color: 'var(--fg-muted)' }}>
             暂无对话，点击上方按钮开始
           </div>
         ) : (
@@ -66,11 +84,9 @@ export default function SideHistory({ conversations, activeId, onSelect, onNew, 
                 </div>
                 <button
                   className="conv-item-delete"
-                  onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
+                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); onDelete(c.id); }}
                   title="删除对话"
-                >
-                  ×
-                </button>
+                >×</button>
               </div>
             ))}
           </div>
@@ -79,8 +95,39 @@ export default function SideHistory({ conversations, activeId, onSelect, onNew, 
 
       <div className="sidebar-footer">
         <span className="status-dot" />
-        Spring + RAG 已连接
+        <span style={{ flex: 1 }}>Spring + RAG 已连接</span>
+        <button className="sidebar-feedback-btn" onClick={() => setShowFeedback(true)} title="反馈建议">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+          </svg>
+          反馈
+        </button>
       </div>
+
+      {showFeedback && (
+        <div className="feedback-overlay" onClick={() => setShowFeedback(false)}>
+          <div className="feedback-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+            <div className="feedback-modal-title">提交反馈</div>
+            {sent ? (
+              <div className="feedback-sent">已提交，感谢反馈！</div>
+            ) : (
+              <>
+                <textarea
+                  className="feedback-textarea"
+                  placeholder="请输入您的建议或遇到什么问题..."
+                  rows={4}
+                  value={comment}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setComment(e.target.value)}
+                />
+                <div className="feedback-modal-actions">
+                  <button className="feedback-cancel" onClick={() => setShowFeedback(false)}>取消</button>
+                  <button className="feedback-submit" onClick={submitFeedback} disabled={!comment.trim()}>提交</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -12,6 +12,7 @@ export type QAResponse = {
   status?: string;
   confidence?: number;
   llm_note?: string | null;
+  trace_id?: string;
 };
 
 function classifyQuestion(question: string): string {

@@ -20,6 +20,8 @@ export default function App() {
     deleteConversation,
     switchConversation,
     send,
+    feedbackState,
+    handleFeedback,
   } = useChat();
 
   async function handleAsk() {
@@ -47,7 +49,7 @@ export default function App() {
           desc="基于 KG + RAG（Spring后端代理规则版问答服务）"
         />
 
-        <ChatBox messages={activeMessages} loading={activeLoading} />
+        <ChatBox messages={activeMessages} loading={activeLoading} onFeedback={handleFeedback} feedbackState={feedbackState} />
 
         <ChatComposer
           value={question}

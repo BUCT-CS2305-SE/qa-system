@@ -1,6 +1,17 @@
+
 export type Msg = { role: 'user' | 'assistant'; text: string; meta?: any };
 
-export default function ChatBox({ messages = [], loading = false }: { messages?: Msg[]; loading?: boolean }) {
+export default function ChatBox({
+  messages = [],
+  loading = false,
+  onFeedback,
+  feedbackState = {},
+}: {
+  messages?: Msg[];
+  loading?: boolean;
+  onFeedback?: (idx: number, helpful: boolean) => void;
+  feedbackState?: Record<number, 'helpful' | 'unhelpful' | undefined>;
+}) {
   return (
     <section className="fgChat" role="log">
       <div className="fgChatInner" style={{ maxWidth: 980, margin: '0 auto' }}>
@@ -57,7 +68,23 @@ export default function ChatBox({ messages = [], loading = false }: { messages?:
                 </div>
               )}
 
-              <div className="fgBubbleMeta">{m.role === 'user' ? '你' : '助手'}</div>
+              <div className="fgBubbleMeta">
+                <span>{m.role === 'user' ? '你' : '助手'}</span>
+                {m.role === 'assistant' && onFeedback && (
+                  <span className="fgFeedback">
+                    <button
+                      className={`fgFeedbackBtn ${feedbackState[i] === 'helpful' ? 'active' : ''}`}
+                      title="有帮助"
+                      onClick={() => onFeedback(i, true)}
+                    >👍</button>
+                    <button
+                      className={`fgFeedbackBtn ${feedbackState[i] === 'unhelpful' ? 'active' : ''}`}
+                      title="不准确"
+                      onClick={() => onFeedback(i, false)}
+                    >👎</button>
+                  </span>
+                )}
+              </div>
             </div>
 
             {m.role === 'user' ? <div className="fgAvatar user" /> : null}
