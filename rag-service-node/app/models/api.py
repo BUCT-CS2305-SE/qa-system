@@ -13,15 +13,22 @@ class QAAskRequest(BaseModel):
 
 
 class QAAskResponse(BaseModel):
-    status: str
-    code: int
-    intent: str
+    # New SRS-aligned fields
+    request_id: str
     answer: str
+    no_data: bool = False
+    sources: List[Dict[str, Optional[str]]] = Field(default_factory=list)
+    # Backward-compatible single source for older clients/tests
+    source: Optional[Dict[str, Optional[str]]] = None
     facts: List[Dict[str, Any]] = Field(default_factory=list)
-    source: List[Dict[str, str]] = Field(default_factory=list)
+
+    # Backward-compatible / diagnostics
+    status: Optional[str] = None
+    code: Optional[int] = None
+    intent: Optional[str] = None
     llm_note: Optional[str] = None
-    confidence: float = 0.0
-    trace_id: str
+    confidence: Optional[float] = None
+    trace_id: Optional[str] = None
 
 
 class FeedbackRequest(BaseModel):

@@ -3,66 +3,66 @@
     "intent": "artifact_museum",
     "required_entity": "artifact",
     "template_name": "artifact_museum_query",
-    "keywords": ["现藏于哪", "收藏于哪", "哪家博物馆", "收藏地"]
+    "keywords": ["现藏于哪", "收藏于哪", "哪家博物馆", "收藏地", "在哪个博物馆", "藏于", "在哪里", "在哪儿", "museum", "which museum", "where is"]
   },
   {
     "intent": "artifact_period",
     "required_entity": "artifact",
     "template_name": "artifact_period_query",
-    "keywords": ["哪个历史时期", "哪个朝代", "什么时期", "什么朝代"]
+    "keywords": ["哪个历史时期", "哪个朝代", "什么时期", "什么朝代", "年代", "时期", "period", "dynasty", "when was"]
   },
   {
     "intent": "artifact_material",
     "required_entity": "artifact",
     "template_name": "artifact_material_query",
-    "keywords": ["什么材料", "什么材质", "由什么制成"]
+    "keywords": ["什么材料", "什么材质", "由什么制成", "材质", "material", "made of"]
   },
   {
     "intent": "artifact_type",
     "required_entity": "artifact",
     "template_name": "artifact_type_query",
-    "keywords": ["什么类型", "什么类别", "哪种器物", "属于什么类型"]
+    "keywords": ["什么类型", "什么类别", "哪种器物", "属于什么类型", "类型", "type", "category"]
   },
   {
     "intent": "artifact_description",
     "required_entity": "artifact",
     "template_name": "artifact_description_query",
-    "keywords": ["介绍一下", "请介绍", "是什么", "是什么文物"]
+    "keywords": ["介绍一下", "请介绍", "是什么", "是什么文物", "介绍", "description", "describe", "what is"]
   },
   {
     "intent": "artifact_dimensions",
     "required_entity": "artifact",
     "template_name": "artifact_dimensions_query",
-    "keywords": ["尺寸", "规格", "多大", "重量是多少"]
+    "keywords": ["尺寸", "规格", "多大", "重量是多少", "长宽高", "dimensions", "size", "weight", "measurement"]
   },
   {
     "intent": "painting_author",
     "required_entity": "artifact",
     "template_name": "painting_author_query",
-    "keywords": ["作者是谁", "谁画的", "谁创作的"]
+    "keywords": ["作者是谁", "谁画的", "谁创作的", "作者", "谁的作品", "author", "artist of", "who painted", "who created"]
   },
   {
     "intent": "artist_biography",
     "required_entity": "artist",
     "template_name": "artist_biography_query",
-    "keywords": ["生平经历", "作者生平", "生平是怎样"]
+    "keywords": ["生平经历", "作者生平", "生平是怎样", "生平", "一生", "biography", "life of", "who is"]
   },
   {
     "intent": "recommended_artifacts",
     "required_entity": "artifact",
     "template_name": "recommended_artifacts_query",
-    "keywords": ["推荐", "相关文物", "类似文物", "还有什么文物", "还有哪些文物"]
+    "keywords": ["推荐", "相关文物", "类似文物", "还有什么文物", "还有哪些文物", "related", "recommend", "similar"]
   },
   {
     "intent": "dynasty_representative_artifacts",
     "required_entity": "dynasty",
     "template_name": "dynasty_representative_query",
-    "keywords": ["代表性文物", "有哪些代表文物", "有哪些文物"]
+    "keywords": ["代表性文物", "有哪些代表文物", "有哪些文物", "什么文物", "representative", "artifacts of"]
   },
   {
     "intent": "museum_count",
     "required_entity": "museum",
     "template_name": "museum_count_query",
-    "keywords": ["收藏了多少件", "多少件中国文物", "一共有多少件"]
+    "keywords": ["收藏了多少件", "多少件中国文物", "一共有多少件", "收藏了多少", "馆藏", "count", "how many", "collection size"]
   }
 ]

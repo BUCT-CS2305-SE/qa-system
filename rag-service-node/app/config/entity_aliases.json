@@ -1,20 +1,24 @@
 {
   "artifact": [
-    {"canonical_name": "女史箴图", "aliases": ["女史箴图", "女史箴图卷"]},
-    {"canonical_name": "青铜奔马", "aliases": ["青铜奔马", "马踏飞燕"]},
-    {"canonical_name": "清明上河图", "aliases": ["清明上河图", "清明上河图卷"]}
+    {"canonical_name": "Admonitions Scroll", "aliases": ["Admonitions Scroll", "Nushi zhen tu"]},
+    {"canonical_name": "Bronze Galloping Horse", "aliases": ["Bronze Galloping Horse", "Ma Ta Fei Yan"]},
+    {"canonical_name": "Along the River During the Qingming Festival", "aliases": ["Along the River During the Qingming Festival", "Qingming Shanghe Tu"]},
+    {"canonical_name": "Tea Bowl and Dish", "aliases": ["Tea Bowl and Dish", "Tea Bowl"]}
   ],
   "museum": [
-    {"canonical_name": "大都会艺术博物馆", "aliases": ["大都会艺术博物馆", "大都会博物馆", "大都会"]},
-    {"canonical_name": "大英博物馆", "aliases": ["大英博物馆"]}
+    {"canonical_name": "The Metropolitan Museum of Art", "aliases": ["Metropolitan Museum", "The Met", "Metropolitan Museum of Art"]},
+    {"canonical_name": "The British Museum", "aliases": ["British Museum", "The British Museum"]},
+    {"canonical_name": "Art Institute of Chicago", "aliases": ["Art Institute of Chicago"]},
+    {"canonical_name": "Cleveland Museum of Art", "aliases": ["Cleveland Museum of Art", "Cleveland Museum"]}
   ],
   "dynasty": [
-    {"canonical_name": "唐代", "aliases": ["唐代", "唐朝"]},
-    {"canonical_name": "宋代", "aliases": ["宋代", "宋朝"]},
-    {"canonical_name": "东汉", "aliases": ["东汉"]}
+    {"canonical_name": "Tang Dynasty", "aliases": ["Tang", "Tang Dynasty"]},
+    {"canonical_name": "Song Dynasty", "aliases": ["Song", "Song Dynasty"]},
+    {"canonical_name": "Eastern Han", "aliases": ["Eastern Han", "Eastern Han Dynasty"]},
+    {"canonical_name": "Ming Dynasty", "aliases": ["Ming", "Ming Dynasty"]}
   ],
   "artist": [
-    {"canonical_name": "顾恺之", "aliases": ["顾恺之"]},
-    {"canonical_name": "张择端", "aliases": ["张择端"]}
+    {"canonical_name": "Gu Kaizhi", "aliases": ["Gu Kaizhi"]},
+    {"canonical_name": "Zhang Zeduan", "aliases": ["Zhang Zeduan"]}
   ]
 }
