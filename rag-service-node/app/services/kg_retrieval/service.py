@@ -62,9 +62,19 @@ class KGRetrievalService:
             if template_name == "same_artist_works_query":
                 return self._query_same_artist_works(parameters)
 
-            # Complex QA: not covered by the remote API; fall back to mock
-            if template_name in {"multi_hop_query", "compare_artifacts_query", "artifact_statistics_query", "path_query"}:
-                return None
+            # ── Complex QA ────────────────────────────────────
+
+            if template_name == "multi_hop_query":
+                return self._query_multi_hop(parameters)
+
+            if template_name == "compare_artifacts_query":
+                return self._query_compare_artifacts(parameters)
+
+            if template_name == "artifact_statistics_query":
+                return self._query_artifact_statistics(parameters)
+
+            if template_name == "path_query":
+                return self._query_graph_path(parameters)
 
         except Exception as error:
             if settings.graph_backend == "remote":
@@ -392,6 +402,188 @@ class KGRetrievalService:
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
+    # ── Multi-hop (via /api/graph/neighbors/{id}) ──────────────
+
+    def _query_multi_hop(self, parameters: dict[str, object]) -> RetrievalResult | None:
+        artifact_name = str(parameters.get("artifact_name", "")).strip()
+        if not artifact_name:
+            return self._no_data_or_fallback("缺少文物名称")
+
+        object_id = self._resolve_object_id(artifact_name)
+        if not object_id:
+            return self._no_data_or_fallback("知识图谱未命中文物")
+
+        neighbors = self._get_json(f"/api/graph/neighbors/{object_id}?depth=2&limit=20&lang=zh")
+        nodes = neighbors.get("nodes", []) if isinstance(neighbors, dict) else []
+        links = neighbors.get("links", []) if isinstance(neighbors, dict) else []
+
+        if not nodes:
+            return self._no_data_or_fallback("未找到关联图数据")
+
+        node_names = [str(n.get("name", n.get("id", "?"))) for n in nodes]
+        relation_types = list({str(li.get("type", li.get("label", "?"))) for li in links})
+
+        detail = self._get_json(f"/api/artifacts/{object_id}?lang=zh")
+        artifact = str(detail.get("name", artifact_name))
+        source_name = str(detail.get("museum", "中国海外流失文物知识图谱"))
+        source_url = str(detail.get("detail_url", f"{settings.kg_api_base_url}/docs"))
+
+        raw_record = {
+            "artifact": artifact,
+            "path_nodes": node_names,
+            "path_relations": relation_types,
+            "explanation": f"{artifact}的知识图谱关联路径为：{' → '.join(node_names)}。",
+            "source_name": source_name,
+            "source_url": source_url,
+        }
+        facts = [
+            RetrievedFact(subject=artifact, predicate="graph_path", object=" → ".join(node_names),
+                          source_name=source_name, source_url=source_url),
+        ]
+        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
+
+    # ── Artifact comparison (via POST /api/artifacts/compare) ──
+
+    def _query_compare_artifacts(self, parameters: dict[str, object]) -> RetrievalResult | None:
+        names = parameters.get("artifact_names") or ([parameters.get("artifact_name")] if parameters.get("artifact_name") else [])
+        if not names or len(names) < 2:
+            # Only one artifact found? Try inferring second from the question pattern
+            artifact_name = str(parameters.get("artifact_name", "")).strip()
+            if not artifact_name:
+                return self._no_data_or_fallback("对比至少需要两件文物名称")
+            fallback = self._retrieve_from_mock("compare_artifacts_query")
+            return fallback
+
+        ids = []
+        for name in names[:3]:
+            oid = self._resolve_object_id(str(name).strip())
+            if oid:
+                ids.append(oid)
+        if len(ids) < 2:
+            return self._no_data_or_fallback("未能找到两件文物的ID")
+
+        payload = json.dumps({"ids": ids}).encode()
+        req = urllib.request.Request(
+            f"{settings.kg_api_base_url}/api/artifacts/compare?lang=zh",
+            data=payload, method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=settings.kg_api_timeout_seconds) as resp:
+                data = json.loads(resp.read())
+        except Exception:
+            return self._no_data_or_fallback("文物对比接口调用失败")
+
+        items = data.get("data", data.get("items", [])) if isinstance(data, dict) else []
+        if not items:
+            return self._no_data_or_fallback("对比接口返回为空")
+
+        a1 = items[0] if len(items) > 0 else {}
+        a2 = items[1] if len(items) > 1 else {}
+
+        raw_record = {
+            "artifact1": str(a1.get("name", names[0])),
+            "artifact2": str(a2.get("name", names[1] if len(names) > 1 else "")),
+            "dynasty1": str(a1.get("period", a1.get("dynasty", ""))),
+            "dynasty2": str(a2.get("period", a2.get("dynasty", ""))),
+            "material1": str(a1.get("material", "")),
+            "material2": str(a2.get("material", "")),
+            "museum1": str(a1.get("museum", "")),
+            "museum2": str(a2.get("museum", "")),
+            "dimensions1": str(a1.get("dimensions", a1.get("size", ""))),
+            "dimensions2": str(a2.get("dimensions", a2.get("size", ""))),
+            "source_name": str(a1.get("museum", "中国海外流失文物知识图谱")),
+            "source_url": str(a1.get("detail_url", f"{settings.kg_api_base_url}/docs")),
+        }
+        facts = [
+            RetrievedFact(
+                subject=f"{raw_record['artifact1']} vs {raw_record['artifact2']}",
+                predicate="comparison",
+                object="已并排对比",
+                source_name=raw_record["source_name"],
+                source_url=raw_record["source_url"],
+            )
+        ]
+        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
+
+    # ── Artifact statistics (via /api/stats/distribution) ──────
+
+    def _query_artifact_statistics(self, parameters: dict[str, object]) -> RetrievalResult | None:
+        dynasty_name = str(parameters.get("dynasty_name", "")).strip()
+        distribution = self._get_json("/api/stats/distribution")
+
+        if not isinstance(distribution, dict):
+            return self._no_data_or_fallback("统计接口返回为空")
+
+        period_dist = distribution.get("period_distribution", distribution.get("periods", []))
+        type_dist = distribution.get("type_distribution", distribution.get("types", []))
+        material_dist = distribution.get("material_distribution", distribution.get("materials", []))
+        museum_dist = distribution.get("museum_distribution", distribution.get("museums", []))
+
+        total = sum(item.get("count", 0) for item in period_dist)
+        types = [str(item.get("name", "")) for item in type_dist[:5] if item.get("name")]
+        materials = [str(item.get("name", "")) for item in material_dist[:5] if item.get("name")]
+        museums = [str(item.get("name", "")) for item in museum_dist[:5] if item.get("name")]
+
+        display_dynasty = dynasty_name or "全部朝代"
+        raw_record = {
+            "dynasty": display_dynasty,
+            "total_artifacts": total,
+            "types": types,
+            "materials": materials,
+            "museums": museums,
+            "source_name": "中国海外流失文物知识图谱",
+            "source_url": f"{settings.kg_api_base_url}/docs",
+        }
+        facts = [
+            RetrievedFact(subject=display_dynasty, predicate="total_artifacts", object=str(total),
+                          source_name=raw_record["source_name"], source_url=raw_record["source_url"]),
+        ]
+        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
+
+    # ── Graph path query (via /api/graph/path) ─────────────────
+
+    def _query_graph_path(self, parameters: dict[str, object]) -> RetrievalResult | None:
+        artifact_name = str(parameters.get("artifact_name", "")).strip()
+        if not artifact_name:
+            return self._no_data_or_fallback("缺少文物名称")
+
+        object_id = self._resolve_object_id(artifact_name)
+        if not object_id:
+            return self._no_data_or_fallback("知识图谱未命中文物")
+
+        # Use neighbors as a rich path-provenance view (path API needs two IDs)
+        neighbors = self._get_json(f"/api/graph/neighbors/{object_id}?depth=2&limit=20&lang=zh")
+        nodes = neighbors.get("nodes", []) if isinstance(neighbors, dict) else []
+        links = neighbors.get("links", []) if isinstance(neighbors, dict) else []
+
+        if not nodes:
+            return self._no_data_or_fallback("未找到文物关联路径")
+
+        node_names = [str(n.get("name", n.get("id", "?"))) for n in nodes]
+        node_types = [str(n.get("type", n.get("label", ""))) for n in nodes]
+        relation_types = list({str(li.get("type", li.get("label", "?"))) for li in links})
+
+        detail = self._get_json(f"/api/artifacts/{object_id}?lang=zh")
+        artifact = str(detail.get("name", artifact_name))
+        source_name = str(detail.get("museum", "中国海外流失文物知识图谱"))
+        source_url = str(detail.get("detail_url", f"{settings.kg_api_base_url}/docs"))
+
+        raw_record = {
+            "artifact": artifact,
+            "path_nodes": node_names,
+            "path_relations": relation_types,
+            "node_types": node_types,
+            "explanation": f"{artifact}的收藏与关联路径为：{' → '.join(node_names)}。",
+            "source_name": source_name,
+            "source_url": source_url,
+        }
+        facts = [
+            RetrievedFact(subject=artifact, predicate="provenance_path", object=" → ".join(node_names),
+                          source_name=source_name, source_url=source_url),
+        ]
+        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
+
     # ── Mock fallback ──────────────────────────────────────────
 
     def _retrieve_from_mock(self, template_name: str) -> RetrievalResult:
@@ -412,6 +604,12 @@ class KGRetrievalService:
                                fail_reason=None if records else "暂无相关数据")
 
     # ── Utility ────────────────────────────────────────────────
+
+    def _no_data_or_fallback(self, reason: str) -> RetrievalResult | None:
+        """Return no_data in remote mode, None in hybrid (triggers mock fallback)."""
+        if settings.graph_backend == "hybrid":
+            return None
+        return RetrievalResult(status="no_data", fail_reason=reason)
 
     def _resolve_object_id(self, artifact_name: str) -> str | None:
         payload = self._get_json(
