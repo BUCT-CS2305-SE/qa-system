@@ -1,0 +1,31 @@
+server:
+  port: 8081
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/qa_db;AUTO_SERVER=TRUE
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+logging:
+  level:
+    root: INFO
+    com.fastgpt: DEBUG
+qa:
+  rag:
+    ask-url: http://localhost:8000/api/qa/ask
+    feedback-url: http://localhost:8000/api/qa/feedback
+    summary-url: http://localhost:8000/api/qa/summary
+    timeoutMs: 30000
+    retries: 1
+  auth:
+    api-key: qa-demo-key
+  rate-limit:
+    max-requests: 60
+    window-seconds: 60
+  history:
+    # 按月清理：默认保留 30 天；如需关闭清理可设为 0
+    retention-days: 30

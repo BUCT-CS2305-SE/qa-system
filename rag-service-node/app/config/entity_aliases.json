@@ -1,0 +1,24 @@
+{
+  "artifact": [
+    {"canonical_name": "Admonitions Scroll", "aliases": ["Admonitions Scroll", "Nushi zhen tu", "女史箴图", "女史箴"]},
+    {"canonical_name": "Bronze Galloping Horse", "aliases": ["Bronze Galloping Horse", "Ma Ta Fei Yan", "马踏飞燕", "青铜奔马"]},
+    {"canonical_name": "Along the River During the Qingming Festival", "aliases": ["Along the River During the Qingming Festival", "Qingming Shanghe Tu", "清明上河图"]},
+    {"canonical_name": "Tea Bowl and Dish", "aliases": ["Tea Bowl and Dish", "Tea Bowl"]}
+  ],
+  "museum": [
+    {"canonical_name": "The Metropolitan Museum of Art", "aliases": ["Metropolitan Museum", "The Met", "Metropolitan Museum of Art"]},
+    {"canonical_name": "The British Museum", "aliases": ["British Museum", "The British Museum"]},
+    {"canonical_name": "Art Institute of Chicago", "aliases": ["Art Institute of Chicago"]},
+    {"canonical_name": "Cleveland Museum of Art", "aliases": ["Cleveland Museum of Art", "Cleveland Museum"]}
+  ],
+  "dynasty": [
+    {"canonical_name": "Tang Dynasty", "aliases": ["Tang Dynasty", "Tang", "唐", "唐代", "唐朝"]},
+    {"canonical_name": "Song Dynasty", "aliases": ["Song Dynasty", "Song", "宋", "宋代", "宋朝"]},
+    {"canonical_name": "Eastern Han", "aliases": ["Eastern Han", "Eastern Han Dynasty", "东汉", "东汉时期"]},
+    {"canonical_name": "Ming Dynasty", "aliases": ["Ming Dynasty", "Ming", "明", "明代", "明朝"]}
+  ],
+  "artist": [
+    {"canonical_name": "Gu Kaizhi", "aliases": ["Gu Kaizhi"]},
+    {"canonical_name": "Zhang Zeduan", "aliases": ["Zhang Zeduan"]}
+  ]
+}

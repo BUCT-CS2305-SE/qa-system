@@ -1,0 +1,18 @@
+QUERY_TEMPLATES = {
+    "artifact_museum_query": "MATCH (a:Artifact {name:$artifact_name})-[:COLLECTED_BY]->(m:Museum) RETURN a.name AS artifact, m.name AS museum, m.detail_url AS source_url",
+    "artifact_period_query": "MATCH (a:Artifact {name:$artifact_name})-[:BELONGS_TO_DYNASTY]->(d:Dynasty) RETURN a.name AS artifact, d.name AS dynasty",
+    "artifact_material_query": "MATCH (a:Artifact {name:$artifact_name})-[:MADE_OF]->(m:Material) RETURN a.name AS artifact, m.name AS material",
+    "artifact_type_query": "MATCH (a:Artifact {name:$artifact_name})-[:HAS_TYPE]->(t:Type) RETURN a.name AS artifact, t.name AS type",
+    "artifact_description_query": "MATCH (a:Artifact {name:$artifact_name}) RETURN a.name AS artifact, a.description AS description",
+    "artifact_dimensions_query": "MATCH (a:Artifact {name:$artifact_name}) RETURN a.name AS artifact, a.dimensions AS dimensions",
+    "painting_author_query": "MATCH (a:Artifact {name:$artifact_name})-[:CREATED_BY]->(p:Artist) RETURN a.name AS artifact, p.name AS artist",
+    "artist_biography_query": "MATCH (p:Artist {name:$artist_name}) RETURN p.name AS artist, p.biography AS biography",
+    "dynasty_representative_query": "MATCH (d:Dynasty {name:$dynasty_name})<-[:BELONGS_TO_DYNASTY]-(a:Artifact) RETURN d.name AS dynasty, collect(a.name) AS artifacts LIMIT 10",
+    "museum_count_query": "MATCH (m:Museum {name:$museum_name})<-[:COLLECTED_BY]-(a:Artifact) RETURN m.name AS museum, count(a) AS artifact_count",
+    "recommended_artifacts_query": "MATCH (a:Artifact {name:$artifact_name}) RETURN a.name AS artifact",
+    "same_artist_works_query": "MATCH (a:Artifact)-[:CREATED_BY]->(p:Artist {name:$artist_name}) RETURN collect(a.name) AS works, p.name AS artist",
+    "multi_hop_query": "MATCH path = (a:Artifact {name:$artifact_name})-[:COLLECTED_BY|CREATED_BY|BELONGS_TO_DYNASTY*1..3]->(target) RETURN a.name AS artifact, [node in nodes(path) | coalesce(node.name, 'Unknown')] AS path_nodes, [rel in relationships(path) | type(rel)] AS path_relations",
+    "compare_artifacts_query": "MATCH (a1:Artifact), (a2:Artifact) WHERE a1.name IN $artifact_names AND a2.name IN $artifact_names AND a1.name <> a2.name OPTIONAL MATCH (a1)-[:BELONGS_TO_DYNASTY]->(d1:Dynasty) OPTIONAL MATCH (a2)-[:BELONGS_TO_DYNASTY]->(d2:Dynasty) OPTIONAL MATCH (a1)-[:MADE_OF]->(m1:Material) OPTIONAL MATCH (a2)-[:MADE_OF]->(m2:Material) OPTIONAL MATCH (a1)-[:COLLECTED_BY]->(c1:Museum) OPTIONAL MATCH (a2)-[:COLLECTED_BY]->(c2:Museum) RETURN a1.name AS artifact1, a2.name AS artifact2, d1.name AS dynasty1, d2.name AS dynasty2, m1.name AS material1, m2.name AS material2, c1.name AS museum1, c2.name AS museum2, a1.dimensions AS dimensions1, a2.dimensions AS dimensions2",
+    "artifact_statistics_query": "MATCH (a:Artifact)-[:BELONGS_TO_DYNASTY]->(d:Dynasty {name:$dynasty_name}) OPTIONAL MATCH (a)-[:HAS_TYPE]->(t:Type) OPTIONAL MATCH (a)-[:MADE_OF]->(m:Material) OPTIONAL MATCH (a)-[:COLLECTED_BY]->(c:Museum) RETURN count(a) AS total_artifacts, collect(DISTINCT coalesce(t.name, 'Unknown')) AS types, collect(DISTINCT coalesce(m.name, 'Unknown')) AS materials, collect(DISTINCT coalesce(c.name, 'Unknown')) AS museums",
+    "path_query": "MATCH path = (a:Artifact {name:$artifact_name})-[r:COLLECTED_BY|CREATED_BY|BELONGS_TO_DYNASTY|MADE_OF|HAS_TYPE*1..3]->(n) RETURN a.name AS artifact, [node in nodes(path) | coalesce(node.name, 'Unknown')] AS path_nodes, [rel in relationships(path) | type(rel)] AS path_relations, [node in nodes(path) | coalesce(labels(node)[0], '')] AS node_types",
+}
