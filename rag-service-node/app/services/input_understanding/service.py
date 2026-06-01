@@ -10,17 +10,17 @@ from app.services.input_understanding.normalizer import QuestionNormalizer
 
 
 class InputUnderstandingService:
-    def __init__(self) -> None:
+    def __init__(self, context_resolver: ContextResolver | None = None) -> None:
         self.normalizer = QuestionNormalizer()
         self.entity_extractor = EntityExtractor()
         self.intent_classifier = IntentClassifier()
-        self.context_resolver = ContextResolver()
+        self.context_resolver = context_resolver or ContextResolver()
 
     def understand(self, question: str, session_id: str | None = None) -> UnderstandingResult:
         normalized = self.normalizer.normalize(question)
         entities = self.entity_extractor.extract(normalized)
-        entities = self.context_resolver.resolve(normalized, entities, session_id)
         intent, confidence, template_name = self.intent_classifier.classify(normalized, entities)
+        entities, _topic_switched = self.context_resolver.resolve(normalized, entities, intent, session_id)
         entities = self._infer_missing_entities(normalized, intent, entities)
         if intent == "unknown":
             return UnderstandingResult(
@@ -53,8 +53,12 @@ class InputUnderstandingService:
             "artifact_dimensions",
             "recommended_artifacts",
             "painting_author",
+            "multi_hop",
+            "path_query",
+            "compare_artifacts",
         }
         artist_intents = {"artist_biography", "same_artist_works"}
+        dynasty_intents = {"artifact_statistics", "dynasty_representative_artifacts"}
 
         if intent in artifact_intents and not entities.get("artifact"):
             return self._infer_artifact_entity(normalized, entities, intent)
@@ -64,6 +68,9 @@ class InputUnderstandingService:
 
         if intent == "museum_count" and not entities.get("museum"):
             return self._infer_museum_entity(normalized, entities)
+
+        if intent in dynasty_intents and not entities.get("dynasty"):
+            return self._infer_dynasty_entity(normalized, entities, intent)
 
         return entities
 
@@ -211,6 +218,37 @@ class InputUnderstandingService:
         inferred_entities["museum"] = [
             EntityMention(
                 entity_type="museum",
+                canonical_name=candidate,
+                matched_text=candidate,
+                confidence=0.65,
+            )
+        ]
+        return inferred_entities
+
+    _PRONOUN_TOKENS = {"它", "他", "她", "其", "这个", "那个", "这件", "那件", "这些", "那些", "该文物"}
+
+    def _infer_dynasty_entity(self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = "") -> dict[str, list[EntityMention]]:
+        candidate = normalized
+        dynasty_patterns = [
+            r"的代表性文物有哪些\??$",
+            r"有哪些(代表)?文物\??$",
+            r"统计\??$",
+            r"分布\??$",
+            r"哪个朝代\??$",
+            r"什么朝代\??$",
+        ]
+        for pattern in dynasty_patterns:
+            candidate = re.sub(pattern, "", candidate)
+
+        candidate = candidate.strip(" ?,.。，；：!！")
+        candidate = self._strip_english_keywords(candidate, intent)
+        if not candidate:
+            return entities
+
+        inferred_entities = dict(entities)
+        inferred_entities["dynasty"] = [
+            EntityMention(
+                entity_type="dynasty",
                 canonical_name=candidate,
                 matched_text=candidate,
                 confidence=0.65,

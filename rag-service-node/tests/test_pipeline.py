@@ -1,4 +1,10 @@
-﻿import unittest
+﻿import os
+import unittest
+
+# Force mock backend and disable LLM for deterministic tests
+os.environ["qa_graph_backend"] = "mock"
+os.environ["qa_llm_backend"] = "mock"
+
 from app.api.routes.health import health_check
 from app.models.api import FeedbackRequest, QAAskRequest
 from app.orchestration.qa_pipeline import QAPipeline
@@ -52,5 +58,44 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r.summary["status_distribution"]["ok"], 2)
         self.assertEqual(r.summary["status_distribution"]["clarify"], 1)
         self.assertEqual(len(r.summary["failed_questions"]), 1)
+
+    # ── Complex QA ───────────────────────────────────────────────
+
+    def test_multi_hop(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="Admonitions Scroll经过哪些地方？", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "multi_hop")
+        self.assertTrue(r.answer)
+
+    def test_compare_artifacts(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="比较Admonitions Scroll和清明上河图", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "compare_artifacts")
+        self.assertIn("Admonitions Scroll", r.answer)
+        self.assertIn("Along the River", r.answer)
+
+    def test_artifact_statistics(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="唐代文物统计", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "artifact_statistics")
+
+    def test_path_query(self):
+        r = self.pipeline.handle_question(QAAskRequest(question="女史箴图的流转路径", mode="rule"))
+        self.assertEqual(r.status, "ok"); self.assertEqual(r.intent, "path_query")
+
+    # ── Multi-turn context ───────────────────────────────────────
+
+    def test_context_pronoun_resolution(self):
+        sid = "test_session_1"
+        r1 = self.pipeline.handle_question(QAAskRequest(question="Admonitions Scroll museum?", session_id=sid, mode="rule"))
+        self.assertEqual(r1.status, "ok")
+        r2 = self.pipeline.handle_question(QAAskRequest(question="它的材质是什么？", session_id=sid, mode="rule"))
+        self.assertEqual(r2.status, "ok")
+        self.assertIn("材质", r2.answer)
+
+    def test_topic_switch(self):
+        sid = "test_session_2"
+        r1 = self.pipeline.handle_question(QAAskRequest(question="Admonitions Scroll museum?", session_id=sid, mode="rule"))
+        self.assertEqual(r1.status, "ok")
+        r2 = self.pipeline.handle_question(QAAskRequest(question="换个话题，清明上河图的作者是谁？", session_id=sid, mode="rule"))
+        self.assertEqual(r2.status, "ok")
+        self.assertEqual(r2.intent, "painting_author")
 
 if __name__ == "__main__": unittest.main()

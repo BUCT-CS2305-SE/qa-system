@@ -22,12 +22,12 @@ from app.services.query_builder.service import QueryBuilderService
 
 class QAPipeline:
     def __init__(self) -> None:
-        self.understanding_service = InputUnderstandingService()
+        self.context_resolver = ContextResolver()
+        self.understanding_service = InputUnderstandingService(context_resolver=self.context_resolver)
         self.query_builder = QueryBuilderService()
         self.retrieval_service = KGRetrievalService()
         self.answer_service = AnswerGenerationService()
         self.logging_service = LoggingFeedbackService()
-        self.context_resolver = ContextResolver()
 
     def handle_question(self, request: QAAskRequest) -> QAAskResponse:
         trace_id = self._trace_id()
@@ -168,5 +168,5 @@ class QAPipeline:
         for etype, mentions in (understanding.entities or {}).items():
             if mentions:
                 extracted[etype] = mentions[0].canonical_name
-        self.context_resolver.record_turn(session_id, "user", question, extracted)
-        self.context_resolver.record_turn(session_id, "assistant", answer, extracted)
+        self.context_resolver.record_turn(session_id, "user", question, extracted, getattr(understanding, "intent", ""))
+        self.context_resolver.record_turn(session_id, "assistant", answer, extracted, getattr(understanding, "intent", ""))

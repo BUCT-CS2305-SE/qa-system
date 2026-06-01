@@ -70,5 +70,29 @@
     "required_entity": "artist",
     "template_name": "same_artist_works_query",
     "keywords": ["同作者作品", "同一作者", "还有哪些作品", "还画了什么", "还创作了什么", "其他作品", "other works", "same artist", "also painted", "also created", "more by", "works by"]
+  },
+  {
+    "intent": "multi_hop",
+    "required_entity": "artifact",
+    "template_name": "multi_hop_query",
+    "keywords": ["通过", "经过", "间接", "怎样到", "怎么到", "multi-hop", "path from", "how did", "trace", "流传", "路线"]
+  },
+  {
+    "intent": "compare_artifacts",
+    "required_entity": "artifact",
+    "template_name": "compare_artifacts_query",
+    "keywords": ["比较", "对比", "哪个更", "区别是什么", "有什么不同", "有什么相同", "比较一下", "更大的", "更小的", "更早的", "更晚的", "compare", "difference between", "which is more", "versus", "vs"]
+  },
+  {
+    "intent": "artifact_statistics",
+    "required_entity": "dynasty",
+    "template_name": "artifact_statistics_query",
+    "keywords": ["统计", "一共有多少", "数量最多", "哪种最多", "分布", "占比", "排行", "排名", "最多的是", "最少的是", "statistics", "how many in total", "most common", "distribution", "ranking", "which type"]
+  },
+  {
+    "intent": "path_query",
+    "required_entity": "artifact",
+    "template_name": "path_query",
+    "keywords": ["从哪里来", "经过哪些地方", "去了哪里", "现在的", "原来的", "流转路径", "收藏历史", "path", "route", "where from", "where to", "how did it get", "从哪"]
   }
 ]

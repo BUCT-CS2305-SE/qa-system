@@ -12,7 +12,11 @@ class QueryBuilderService:
 
         parameters = {}
         if "artifact" in understanding.entities:
-            parameters["artifact_name"] = understanding.entities["artifact"][0].canonical_name
+            entities = understanding.entities
+            if template_name == "compare_artifacts_query" and len(entities.get("artifact", [])) > 1:
+                parameters["artifact_names"] = [m.canonical_name for m in entities["artifact"]]
+            else:
+                parameters["artifact_name"] = entities["artifact"][0].canonical_name
         if "artist" in understanding.entities:
             parameters["artist_name"] = understanding.entities["artist"][0].canonical_name
         if "dynasty" in understanding.entities:
