@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import urllib.parse
 import urllib.request
 from html import unescape
@@ -8,6 +9,8 @@ from html import unescape
 from app.core.config import settings
 from app.models.domain import RetrievalResult, RetrievedFact
 from app.services.kg_retrieval.mock_data import MOCK_RESULTS
+
+logger = logging.getLogger(__name__)
 
 
 class KGRetrievalService:
@@ -21,8 +24,10 @@ class KGRetrievalService:
         if settings.graph_backend in {"remote", "hybrid"}:
             remote_result = self._retrieve_from_remote(template_name, parameters)
             if remote_result is not None:
+                logger.info("KG data source: remote (template=%s, status=%s)", template_name, remote_result.status)
                 return remote_result
 
+        logger.info("KG data source: mock (template=%s)", template_name)
         return self._retrieve_from_mock(template_name)
 
     # ── Remote dispatch ────────────────────────────────────────
@@ -56,6 +61,10 @@ class KGRetrievalService:
 
             if template_name == "same_artist_works_query":
                 return self._query_same_artist_works(parameters)
+
+            # Complex QA: not covered by the remote API; fall back to mock
+            if template_name in {"multi_hop_query", "compare_artifacts_query", "artifact_statistics_query", "path_query"}:
+                return None
 
         except Exception as error:
             if settings.graph_backend == "remote":

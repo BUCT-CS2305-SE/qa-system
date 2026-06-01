@@ -71,20 +71,34 @@ export async function ask(question: string, sessionId?: string): Promise<QARespo
   };
 }
 
-export type HistoryItem = { id: string; title: string; last: string };
+export type HistoryItem = { id: string; title: string; last: string; question: string; answer: string };
 
 export async function getHistory(sessionId: string, _limit = 20): Promise<HistoryItem[]> {
   try {
     const items = await fetchHistory(sessionId, _limit);
     if (!items || items.length === 0) {
-      return [{ id: sessionId, title: '当前会话', last: '尚无历史记录，开始提问吧' }];
+      return [{
+        id: sessionId,
+        title: '当前会话',
+        last: '尚无历史记录，开始提问吧',
+        question: '',
+        answer: ''
+      }];
     }
     return items.map((it) => ({
       id: String(it.id),
       title: it.question.length > 30 ? it.question.substring(0, 30) + '...' : it.question,
-      last: it.answer.length > 40 ? it.answer.substring(0, 40) + '...' : it.answer
+      last: it.answer.length > 40 ? it.answer.substring(0, 40) + '...' : it.answer,
+      question: it.question,
+      answer: it.answer
     }));
   } catch {
-    return [{ id: sessionId, title: '当前会话', last: '后端已接入，可直接测试问答链路' }];
+    return [{
+      id: sessionId,
+      title: '当前会话',
+      last: '后端已接入，可直接测试问答链路',
+      question: '',
+      answer: ''
+    }];
   }
 }

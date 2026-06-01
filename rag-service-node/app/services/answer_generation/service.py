@@ -104,4 +104,43 @@ class AnswerGenerationService:
             if isinstance(works, list) and works:
                 return f"{record['artist']}的其他作品有：{'、'.join(str(w) for w in works)}。"
             return f"{record.get('artist', '该作者')}的其他作品信息暂无。"
+        if intent == "multi_hop":
+            nodes = record.get("path_nodes", [])
+            if isinstance(nodes, list) and nodes:
+                explanation = record.get("explanation", f"流转路径：{' → '.join(str(n) for n in nodes)}")
+                return str(explanation)
+            return f"{record['artifact']}的流转路径暂无详细信息。"
+        if intent == "compare_artifacts":
+            parts = []
+            a1 = record.get("artifact1", "文物一")
+            a2 = record.get("artifact2", "文物二")
+            parts.append(f"{a1}与{a2}的比较如下：")
+            if record.get("dynasty1") and record.get("dynasty2"):
+                parts.append(f"年代：{a1}为{record['dynasty1']}，{a2}为{record['dynasty2']}")
+            if record.get("material1") and record.get("material2"):
+                parts.append(f"材质：{a1}为{record['material1']}，{a2}为{record['material2']}")
+            if record.get("museum1") and record.get("museum2"):
+                parts.append(f"收藏地：{a1}在{record['museum1']}，{a2}在{record['museum2']}")
+            if record.get("dimensions1") and record.get("dimensions2"):
+                parts.append(f"尺寸：{a1}为{record['dimensions1']}，{a2}为{record['dimensions2']}")
+            return "。".join(parts) + "。"
+        if intent == "artifact_statistics":
+            total = record.get("total_artifacts", 0)
+            parts = [f"{record.get('dynasty', '该朝代')}共有{total}件文物。"]
+            types = record.get("types", [])
+            if isinstance(types, list) and types:
+                parts.append(f"类型包括：{'、'.join(str(t) for t in types)}")
+            materials = record.get("materials", [])
+            if isinstance(materials, list) and materials:
+                parts.append(f"材质包括：{'、'.join(str(m) for m in materials)}")
+            museums = record.get("museums", [])
+            if isinstance(museums, list) and museums:
+                parts.append(f"分布于以下博物馆：{'、'.join(str(m) for m in museums)}")
+            return "。".join(parts) + "。"
+        if intent == "path_query":
+            nodes = record.get("path_nodes", [])
+            if isinstance(nodes, list) and nodes:
+                explanation = record.get("explanation", f"路径：{' → '.join(str(n) for n in nodes)}")
+                return str(explanation)
+            return f"{record['artifact']}的收藏路径暂无详细信息。"
         return "已检索到相关事实。"

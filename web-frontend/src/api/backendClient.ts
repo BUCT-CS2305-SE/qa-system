@@ -43,6 +43,15 @@ export type BackendHistoryItem = {
 };
 
 const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8081';
+const API_KEY = import.meta.env.VITE_API_KEY ?? 'qa-demo-key';
+
+function authHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (API_KEY) {
+        headers['X-Api-Key'] = API_KEY;
+    }
+    return headers;
+}
 
 export async function askBackend(
   question: string,
@@ -61,7 +70,7 @@ export async function askBackend(
     };
     const response = await fetch(`${BASE_URL}/api/qa/ask`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify(bodyPayload),
       signal: controller.signal
     });
@@ -91,7 +100,7 @@ export async function sendBackendFeedback(
   try {
     const response = await fetch(`${BASE_URL}/api/qa/feedback`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({
         trace_id: traceId,
         helpful,
@@ -114,14 +123,14 @@ export async function fetchHistory(
   _limit = 20
 ): Promise<BackendHistoryItem[]> {
   try {
-    // backend currently exposes summary rather than per-session history; return empty list to avoid 404
-    const response = await fetch(`${BASE_URL}/api/qa/summary`);
+    const response = await fetch(`${BASE_URL}/api/qa/history/list?sessionId=${encodeURIComponent(_sessionId)}&limit=${_limit}`, {
+      headers: authHeaders()
+    });
     if (!response.ok) {
-      console.warn('history/summary fetch failed', response.status);
+      console.warn('history fetch failed', response.status);
       return [];
     }
-    // If summary exists, we don't have a compatible history format yet - return empty array
-    return [];
+    return (await response.json()) as BackendHistoryItem[];
   } catch (error: unknown) {
     console.error('history fetch error', error);
     return [];

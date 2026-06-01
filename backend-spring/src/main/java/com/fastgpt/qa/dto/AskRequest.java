@@ -2,9 +2,11 @@ package com.fastgpt.qa.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class AskRequest {
     @NotBlank
+    @Size(max = 500, message = "问题长度不能超过500字符")
     private String question;
 
     @JsonProperty("session_id")

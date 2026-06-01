@@ -95,4 +95,52 @@ MOCK_RESULTS = {
             "source_url": "https://www.dpm.org.cn",
         }
     ],
+    "multi_hop_query": [
+        {
+            "artifact": "Admonitions Scroll",
+            "path_nodes": ["Admonitions Scroll", "Zhang Hu", "Yuan Dynasty Collection", "Qianlong Emperor", "The British Museum"],
+            "path_relations": ["CREATED_BY", "COLLECTED_BY", "TRANSFERRED_TO", "COLLECTED_BY"],
+            "explanation": "《女史箴图》由顾恺之创作，历经张华题跋、元代宫廷收藏、乾隆皇帝珍藏，最终流失至大英博物馆。",
+            "source_name": "The British Museum",
+            "source_url": "https://www.britishmuseum.org/collection",
+        }
+    ],
+    "compare_artifacts_query": [
+        {
+            "artifact1": "Admonitions Scroll",
+            "artifact2": "Along the River During the Qingming Festival",
+            "dynasty1": "Eastern Jin",
+            "dynasty2": "Northern Song",
+            "material1": "Silk",
+            "material2": "Silk",
+            "museum1": "The British Museum",
+            "museum2": "The Palace Museum",
+            "dimensions1": "24.8cm × 348.2cm",
+            "dimensions2": "24.8cm × 528.7cm",
+            "source_name": "Cultural Heritage KG",
+            "source_url": "https://se-cs2305.yazs.top/docs",
+        }
+    ],
+    "artifact_statistics_query": [
+        {
+            "dynasty": "Tang Dynasty",
+            "total_artifacts": 156,
+            "types": ["Ceramic", "Painting", "Sculpture", "Calligraphy", "Bronze"],
+            "materials": ["Ceramic", "Silk", "Bronze", "Stone", "Paper"],
+            "museums": ["The British Museum", "The Metropolitan Museum of Art", "Tokyo National Museum", "Louvre Museum"],
+            "source_name": "China Overseas Lost Cultural Relics KG",
+            "source_url": "https://se-cs2305.yazs.top/docs",
+        }
+    ],
+    "path_query": [
+        {
+            "artifact": "Admonitions Scroll",
+            "path_nodes": ["Admonitions Scroll", "Tang Dynasty Palace", "Qianlong Emperor", "Yuanmingyuan", "The British Museum"],
+            "path_relations": ["COLLECTED_BY", "COLLECTED_BY", "STORED_AT", "COLLECTED_BY"],
+            "node_types": ["Artifact", "Dynasty", "Artist", "Museum", "Museum"],
+            "explanation": "《女史箴图》原藏于唐代宫廷，后经乾隆皇帝收藏，曾存放于圆明园，1860年流失至大英博物馆。",
+            "source_name": "The British Museum",
+            "source_url": "https://www.britishmuseum.org/collection",
+        }
+    ],
 }
