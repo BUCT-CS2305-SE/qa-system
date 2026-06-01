@@ -3,7 +3,9 @@ package com.fastgpt.qa.controller;
 import com.fastgpt.qa.dto.AskRequest;
 import com.fastgpt.qa.dto.AskResponse;
 import com.fastgpt.qa.dto.HistoryDto;
+import com.fastgpt.qa.model.FeedbackEntity;
 import com.fastgpt.qa.model.HistoryEntity;
+import com.fastgpt.qa.repository.FeedbackRepository;
 import com.fastgpt.qa.service.HistoryService;
 import com.fastgpt.qa.service.QaService;
 import com.fastgpt.qa.service.RagClient;
@@ -26,11 +28,14 @@ public class QaController {
     private final QaService qaService;
     private final HistoryService historyService;
     private final RagClient ragClient;
+    private final FeedbackRepository feedbackRepository;
 
-    public QaController(QaService qaService, HistoryService historyService, RagClient ragClient) {
+    public QaController(QaService qaService, HistoryService historyService, RagClient ragClient,
+                        FeedbackRepository feedbackRepository) {
         this.qaService = qaService;
         this.historyService = historyService;
         this.ragClient = ragClient;
+        this.feedbackRepository = feedbackRepository;
     }
 
     @GetMapping("/health")
@@ -51,10 +56,20 @@ public class QaController {
             boolean helpful = Boolean.TRUE.equals(payload.get("helpful"));
             String comment = (String) payload.get("comment");
 
+            feedbackRepository.save(new FeedbackEntity(traceId, helpful, comment));
+
             Map<String, Object> result = ragClient.sendFeedback(traceId, helpful, comment);
             return ResponseEntity.ok(result);
         } catch (Exception ex) {
             logger.error("feedback proxy failed: {}", ex.getMessage());
+
+            try {
+                String traceId = (String) payload.get("trace_id");
+                boolean helpful = Boolean.TRUE.equals(payload.get("helpful"));
+                String comment = (String) payload.get("comment");
+                feedbackRepository.save(new FeedbackEntity(traceId, helpful, comment));
+            } catch (Exception ignored) {}
+
             Map<String, Object> err = Map.of("status", "error", "code", 5004, "message", "反馈提交失败");
             return ResponseEntity.internalServerError().body(err);
         }

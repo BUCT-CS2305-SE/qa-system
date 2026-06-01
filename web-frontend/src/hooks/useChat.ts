@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ask, getHistory } from '@/api/qa';
+import { sendBackendFeedback } from '@/api/backendClient';
 import type { QAResponse } from '@/api/qa';
 
 export type Message = { role: 'user' | 'assistant'; text: string; meta?: QAResponse };
@@ -13,6 +14,8 @@ type ConvMessages = {
 export function useChat() {
   const [conversations, setConversations] = useState<Record<string, ConvMessages>>({});
   const [activeId, setActiveId] = useState<string>('');
+
+  const [feedbackState, setFeedbackState] = useState<Record<string, Record<number, 'helpful' | 'unhelpful'>>>({});
 
   function generateId(): string {
     return 'conv_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
@@ -106,6 +109,21 @@ export function useChat() {
     }
   }, [selectOrCreate, conversations]);
 
+  const handleFeedback = useCallback(async (msgIdx: number, helpful: boolean) => {
+    const conv = getActive();
+    if (!conv || !conv.messages[msgIdx]) return;
+    const meta = conv.messages[msgIdx].meta;
+    const traceId = meta?.trace_id || meta?.request_id;
+    if (!traceId) return;
+
+    await sendBackendFeedback(traceId, helpful);
+
+    setFeedbackState((prev) => ({
+      ...prev,
+      [activeId]: { ...(prev[activeId] || {}), [msgIdx]: helpful ? 'helpful' : 'unhelpful' },
+    }));
+  }, [getActive, activeId]);
+
   const convList = Object.entries(conversations).map(([id, c]) => ({
     id,
     title: c.messages.length > 0
@@ -126,5 +144,7 @@ export function useChat() {
     deleteConversation,
     switchConversation,
     send,
+    feedbackState: feedbackState[activeId] || {},
+    handleFeedback,
   };
 }
