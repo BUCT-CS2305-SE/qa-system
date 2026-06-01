@@ -47,14 +47,11 @@ public class AskResponse {
         @JsonProperty("detail_url")
         private String detailUrl;
 
-        private String name;
-        private String url;
-
         public Source() {}
 
-        public Source(String name, String url) {
-            this.name = name;
-            this.url = url;
+        public Source(String sourceName, String detailUrl) {
+            this.sourceName = sourceName;
+            this.detailUrl = detailUrl;
         }
 
         public String getSourceName() {
@@ -71,22 +68,6 @@ public class AskResponse {
 
         public void setDetailUrl(String detailUrl) {
             this.detailUrl = detailUrl;
-        }
-
-        public String getName() {
-            return sourceName != null ? sourceName : name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getUrl() {
-            return detailUrl != null ? detailUrl : url;
-        }
-
-        public void setUrl(String url) {
-            this.url = url;
         }
     }
 

@@ -2,11 +2,8 @@ package com.fastgpt.qa.controller;
 
 import com.fastgpt.qa.dto.AskRequest;
 import com.fastgpt.qa.dto.AskResponse;
-import com.fastgpt.qa.dto.HistoryDto;
 import com.fastgpt.qa.model.FeedbackEntity;
-import com.fastgpt.qa.model.HistoryEntity;
 import com.fastgpt.qa.repository.FeedbackRepository;
-import com.fastgpt.qa.service.HistoryService;
 import com.fastgpt.qa.service.QaService;
 import com.fastgpt.qa.service.RagClient;
 import org.slf4j.Logger;
@@ -15,9 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/qa")
@@ -26,14 +21,12 @@ public class QaController {
     private static final Logger logger = LoggerFactory.getLogger(QaController.class);
 
     private final QaService qaService;
-    private final HistoryService historyService;
     private final RagClient ragClient;
     private final FeedbackRepository feedbackRepository;
 
-    public QaController(QaService qaService, HistoryService historyService, RagClient ragClient,
+    public QaController(QaService qaService, RagClient ragClient,
                         FeedbackRepository feedbackRepository) {
         this.qaService = qaService;
-        this.historyService = historyService;
         this.ragClient = ragClient;
         this.feedbackRepository = feedbackRepository;
     }
@@ -85,33 +78,5 @@ public class QaController {
             Map<String, Object> err = Map.of("status", "error", "code", 5004, "message", "获取统计失败");
             return ResponseEntity.internalServerError().body(err);
         }
-    }
-
-    @GetMapping("/history")
-    public ResponseEntity<List<HistoryDto>> history(
-            @RequestParam(name = "sessionId", required = false) String sessionId,
-            @RequestParam(name = "limit", defaultValue = "20") int limit
-    ) {
-        if (sessionId == null || sessionId.isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
-        List<HistoryEntity> list = historyService.listBySession(sessionId, limit);
-        List<HistoryDto> dtoList = list.stream().map(e -> {
-            HistoryDto d = new HistoryDto();
-            d.setId(e.getId());
-            d.setRequestId(e.getRequestId());
-            d.setSessionId(e.getSessionId());
-            d.setQuestion(e.getQuestion());
-            d.setAnswer(e.getAnswer());
-            d.setNoData(e.isNoData());
-            d.setSources(e.getSources());
-            d.setFacts(e.getFacts());
-            d.setIntent(e.getIntent());
-            d.setStatus(e.getStatus());
-            d.setConfidence(e.getConfidence());
-            d.setCreatedAt(e.getCreatedAt());
-            return d;
-        }).collect(Collectors.toList());
-        return ResponseEntity.ok(dtoList);
     }
 }
