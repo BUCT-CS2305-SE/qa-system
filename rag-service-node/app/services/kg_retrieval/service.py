@@ -81,14 +81,25 @@ class KGRetrievalService:
                 return RetrievalResult(status="no_data", fail_reason=f"知识图谱接口调用失败: {error}")
         return None
 
-    # ── Artifact property queries (search → detail / property) ──
+    # ── Artifact property queries (search → grounding) ──────────
+    # Use /api/qa/grounding/{id} for full fact package in one call.
 
-    _PROP_MAP = {
-        "artifact_museum_query": "museum",
-        "artifact_period_query": "period",
-        "artifact_material_query": "material",
-        "artifact_type_query": "type",
-        "artifact_description_query": "description",
+    _FIELD_MAP = {
+        "artifact_museum_query":      ("museum",       "museum"),
+        "artifact_period_query":      ("period",       "dynasty"),
+        "artifact_material_query":    ("material",     "material"),
+        "artifact_type_query":        ("type",         "type"),
+        "artifact_description_query": ("description",  "description"),
+        "artifact_dimensions_query":  ("dimensions",   "dimensions"),
+        "painting_author_query":      (None,           "artist"),
+    }
+
+    _FACT_PREDICATE_FALLBACK = {
+        "material":  "MADE_OF",
+        "type":      "HAS_TYPE",
+        "artist":    "CREATED_BY",
+        "period":    "BELONGS_TO_PERIOD",
+        "museum":    "COLLECTED_BY",
     }
 
     def _resolve_and_query_artifact(self, template_name: str, parameters: dict[str, object]) -> RetrievalResult | None:
@@ -103,18 +114,51 @@ class KGRetrievalService:
                 else RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
             )
 
-        if template_name == "artifact_dimensions_query":
-            detail = self._get_json(f"/api/artifacts/{object_id}")
-            return self._build_detail_result(template_name, artifact_name, object_id, detail)
+        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
+        artifact = str(grounding.get("title", grounding.get("name", artifact_name)))
+        source_name = str(grounding.get("museum", "")) or None
+        source_url = str(grounding.get("source_url", "")) or None
+        facts_list: list[dict] = grounding.get("facts", []) if isinstance(grounding, dict) else []
 
-        if template_name == "painting_author_query":
-            detail = self._get_json(f"/api/artifacts/{object_id}")
-            return self._build_author_result(artifact_name, object_id, detail)
+        field_info = self._FIELD_MAP.get(template_name, (None, None))
+        grounding_field, display_key = field_info
 
-        prop = self._PROP_MAP[template_name]
-        detail = self._get_json(f"/api/artifacts/{object_id}")
-        property_payload = self._get_json(f"/api/artifacts/{object_id}/property?prop={prop}")
-        return self._build_property_result(template_name, artifact_name, object_id, property_payload, detail)
+        value = None
+        if grounding_field:
+            value = grounding.get(grounding_field)
+        elif template_name == "painting_author_query":
+            for fact in facts_list:
+                if fact.get("predicate") == "CREATED_BY":
+                    value = fact.get("object")
+                    if value:
+                        break
+
+        if value in (None, "") and display_key in self._FACT_PREDICATE_FALLBACK:
+            predicate = self._FACT_PREDICATE_FALLBACK[display_key]
+            for fact in facts_list:
+                if fact.get("predicate") == predicate:
+                    candidate = fact.get("object")
+                    if candidate:
+                        value = candidate
+                        break
+
+        if value in (None, ""):
+            logger.info("KG grounding: field '%s' empty for artifact %s (id=%s), backend=%s",
+                         grounding_field or display_key, artifact_name, object_id, settings.graph_backend)
+            return self._no_data_or_fallback("知识图谱属性为空")
+
+        raw_record = {
+            "id": object_id,
+            "artifact": artifact,
+            display_key: str(value),
+            "source_name": source_name,
+            "source_url": source_url,
+        }
+        facts = [
+            RetrievedFact(subject=artifact, predicate=display_key, object=str(value),
+                          source_name=source_name, source_url=source_url),
+        ]
+        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
     # ── Related artifacts (data team's /api/artifacts/{id}/related) ──
 
@@ -130,12 +174,11 @@ class KGRetrievalService:
                 else RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
             )
 
-        detail = self._get_json(f"/api/artifacts/{object_id}")
-        artifact = str(detail.get("name", artifact_name))
-        museum_name = str(detail.get("museum", ""))
-        source_url = str(detail.get("detail_url", "")) or None
+        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
+        artifact = str(grounding.get("title", artifact_name))
+        museum_name = str(grounding.get("museum", "")) or None
+        source_url = str(grounding.get("source_url", "")) or None
 
-        # Use data team's related endpoint
         related_payload = self._get_json(f"/api/artifacts/{object_id}/related?top_k=3&lang=zh")
         related_items = related_payload.get("data", []) if isinstance(related_payload, dict) else []
 
@@ -157,8 +200,8 @@ class KGRetrievalService:
                 subject=artifact,
                 predicate="recommended_artifact",
                 object=name,
-                source_name=str(item.get("museum", museum_name)) or (museum_name or source_url or ""),
-                source_url=str(item.get("detail_url", "")) or source_url or "",
+                source_name=str(item.get("museum", museum_name or "")),
+                source_url=str(item.get("detail_url", source_url or "")),
             )
             for name, item in zip(recommendation_names, related_items)
         ]
@@ -288,82 +331,6 @@ class KGRetrievalService:
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
-    # ── Build helpers ──────────────────────────────────────────
-
-    def _build_property_result(self, template_name: str, artifact_name: str, object_id: str,
-                               property_payload: dict, detail_payload: dict) -> RetrievalResult:
-        prop = str(property_payload.get("prop", ""))
-        value = property_payload.get("value")
-        source_name = str(detail_payload.get("museum", "")) or None
-        source_url = str(detail_payload.get("detail_url", "")) or None
-        artifact = str(detail_payload.get("name", artifact_name))
-
-        if value in (None, ""):
-            return RetrievalResult(status="no_data", fail_reason="知识图谱属性为空")
-
-        object_key_map = {
-            "artifact_museum_query": "museum",
-            "artifact_period_query": "dynasty",
-            "artifact_material_query": "material",
-            "artifact_type_query": "type",
-            "artifact_description_query": "description",
-        }
-        object_key = object_key_map[template_name]
-        raw_record = {
-            "id": object_id,
-            "artifact": artifact,
-            object_key: str(value),
-            "source_name": source_name,
-            "source_url": source_url,
-        }
-        facts = [
-            RetrievedFact(subject=artifact, predicate=prop, object=str(value),
-                          source_name=source_name, source_url=source_url),
-        ]
-        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
-
-    def _build_detail_result(self, template_name: str, artifact_name: str, object_id: str,
-                             detail_payload: dict) -> RetrievalResult:
-        artifact = str(detail_payload.get("name", artifact_name))
-        source_name = str(detail_payload.get("museum", "")) or None
-        source_url = str(detail_payload.get("detail_url", "")) or None
-
-        field_map = {"artifact_dimensions_query": "dimensions"}
-        field_name = field_map[template_name]
-        value = detail_payload.get(field_name)
-        if value in (None, ""):
-            return RetrievalResult(status="no_data", fail_reason="知识图谱详情字段为空")
-
-        raw_record = {
-            "id": object_id, "artifact": artifact, field_name: str(value),
-            "source_name": source_name, "source_url": source_url,
-        }
-        facts = [
-            RetrievedFact(subject=artifact, predicate=field_name, object=str(value),
-                          source_name=source_name, source_url=source_url),
-        ]
-        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
-
-    def _build_author_result(self, artifact_name: str, object_id: str,
-                             detail_payload: dict) -> RetrievalResult:
-        artifact = str(detail_payload.get("name", artifact_name))
-        source_name = str(detail_payload.get("museum", "")) or None
-        source_url = str(detail_payload.get("detail_url", "")) or None
-        artist = detail_payload.get("author") or detail_payload.get("artist")
-
-        if not artist:
-            return RetrievalResult(status="no_data", fail_reason="知识图谱中无作者信息")
-
-        raw_record = {
-            "id": object_id, "artifact": artifact, "artist": str(artist),
-            "source_name": source_name, "source_url": source_url,
-        }
-        facts = [
-            RetrievedFact(subject=artifact, predicate="artist", object=str(artist),
-                          source_name=source_name, source_url=source_url),
-        ]
-        return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
-
     # ── Same artist works (via search API) ──────────────────────
 
     def _query_same_artist_works(self, parameters: dict[str, object]) -> RetrievalResult | None:
@@ -423,10 +390,10 @@ class KGRetrievalService:
         node_names = [str(n.get("name", n.get("id", "?"))) for n in nodes]
         relation_types = list({str(li.get("type", li.get("label", "?"))) for li in links})
 
-        detail = self._get_json(f"/api/artifacts/{object_id}?lang=zh")
-        artifact = str(detail.get("name", artifact_name))
-        source_name = str(detail.get("museum", "中国海外流失文物知识图谱"))
-        source_url = str(detail.get("detail_url", f"{settings.kg_api_base_url}/docs"))
+        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
+        artifact = str(grounding.get("title", artifact_name))
+        source_name = str(grounding.get("museum", "")) or "中国海外流失文物知识图谱"
+        source_url = str(grounding.get("source_url", f"{settings.kg_api_base_url}/docs"))
 
         raw_record = {
             "artifact": artifact,
@@ -564,10 +531,10 @@ class KGRetrievalService:
         node_types = [str(n.get("type", n.get("label", ""))) for n in nodes]
         relation_types = list({str(li.get("type", li.get("label", "?"))) for li in links})
 
-        detail = self._get_json(f"/api/artifacts/{object_id}?lang=zh")
-        artifact = str(detail.get("name", artifact_name))
-        source_name = str(detail.get("museum", "中国海外流失文物知识图谱"))
-        source_url = str(detail.get("detail_url", f"{settings.kg_api_base_url}/docs"))
+        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
+        artifact = str(grounding.get("title", artifact_name))
+        source_name = str(grounding.get("museum", "")) or "中国海外流失文物知识图谱"
+        source_url = str(grounding.get("source_url", f"{settings.kg_api_base_url}/docs"))
 
         raw_record = {
             "artifact": artifact,
@@ -616,7 +583,10 @@ class KGRetrievalService:
             f"/api/search?q={urllib.parse.quote(artifact_name)}&page=1&page_size=10&lang=zh")
         candidates = payload.get("data", []) if isinstance(payload, dict) else []
         if not candidates:
+            logger.info("KG search for '%s': 0 results", artifact_name)
             return None
+        logger.info("KG search for '%s': %d results, first=%s",
+                     artifact_name, len(candidates), candidates[0].get("id"))
         normalized_target = self._normalize_text(artifact_name)
         exact_match = next(
             (item for item in candidates
