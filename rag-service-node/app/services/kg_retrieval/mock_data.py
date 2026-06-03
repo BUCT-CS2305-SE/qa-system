@@ -27,24 +27,24 @@ MOCK_RESULTS = {
         {
             "artifact": "Tea Bowl and Dish",
             "type": "Ceramic",
-            "source_name": "Cleveland Museum of Art",
-            "source_url": "https://www.clevelandart.org/art/1964.178",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
         }
     ],
     "artifact_description_query": [
         {
             "artifact": "Tea Bowl and Dish",
-            "description": "A ceramic tea bowl and dish from the Chinese collection, featuring delicate glaze and refined craftsmanship typical of the period.",
-            "source_name": "Cleveland Museum of Art",
-            "source_url": "https://www.clevelandart.org/art/1964.178",
+            "description": "A ceramic tea bowl and dish from the Chinese collection at the Art Institute of Chicago, featuring delicate glaze and refined craftsmanship typical of the period.",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
         }
     ],
     "artifact_dimensions_query": [
         {
             "artifact": "Tea Bowl and Dish",
             "dimensions": "Diameter 15.2cm, Height 6.3cm",
-            "source_name": "Cleveland Museum of Art",
-            "source_url": "https://www.clevelandart.org/art/1964.178",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
         }
     ],
     "painting_author_query": [
@@ -83,8 +83,8 @@ MOCK_RESULTS = {
         {
             "artifact": "Tea Bowl and Dish",
             "recommendations": ["Longquan Celadon Vase", "Jun Ware Bowl", "Ding Ware Plate"],
-            "source_name": "Cleveland Museum of Art",
-            "source_url": "https://www.clevelandart.org",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
         }
     ],
     "same_artist_works_query": [
