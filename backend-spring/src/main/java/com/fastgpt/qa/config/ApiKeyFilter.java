@@ -43,7 +43,7 @@ public class ApiKeyFilter implements Filter {
         }
 
         String path = httpRequest.getRequestURI();
-        if (path.startsWith("/api/qa/health")) {
+        if (path.startsWith("/api/qa/health") || path.startsWith("/h2-console")) {
             chain.doFilter(request, response);
             return;
         }

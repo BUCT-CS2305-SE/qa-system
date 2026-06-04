@@ -109,10 +109,7 @@ class KGRetrievalService:
 
         object_id = self._resolve_object_id(artifact_name)
         if not object_id:
-            return (
-                None if settings.graph_backend == "hybrid"
-                else RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
-            )
+            return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
 
         grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
         artifact = str(grounding.get("title", grounding.get("name", artifact_name)))
@@ -145,7 +142,7 @@ class KGRetrievalService:
         if value in (None, ""):
             logger.info("KG grounding: field '%s' empty for artifact %s (id=%s), backend=%s",
                          grounding_field or display_key, artifact_name, object_id, settings.graph_backend)
-            return self._no_data_or_fallback("知识图谱属性为空")
+            return RetrievalResult(status="no_data", fail_reason="知识图谱属性为空")
 
         raw_record = {
             "id": object_id,
@@ -169,10 +166,7 @@ class KGRetrievalService:
 
         object_id = self._resolve_object_id(artifact_name)
         if not object_id:
-            return (
-                None if settings.graph_backend == "hybrid"
-                else RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
-            )
+            return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
 
         grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
         artifact = str(grounding.get("title", artifact_name))
@@ -184,10 +178,7 @@ class KGRetrievalService:
 
         recommendation_names = [str(item.get("name", "")) for item in related_items if item.get("name")]
         if not recommendation_names:
-            return (
-                None if settings.graph_backend == "hybrid"
-                else RetrievalResult(status="no_data", fail_reason="未找到可推荐的相关文物")
-            )
+            return RetrievalResult(status="no_data", fail_reason="未找到可推荐的相关文物")
 
         raw_record = {
             "artifact": artifact,
@@ -220,10 +211,7 @@ class KGRetrievalService:
         search_payload = self._get_json(f"/api/search?q={urllib.parse.quote(artist_name)}&page=1&page_size=1&lang=zh")
         candidates = search_payload.get("data", []) if isinstance(search_payload, dict) else []
         if not candidates:
-            return (
-                None if settings.graph_backend == "hybrid"
-                else RetrievalResult(status="no_data", fail_reason="未找到该作者相关信息")
-            )
+            return RetrievalResult(status="no_data", fail_reason="未找到该作者相关信息")
         object_id = str(candidates[0].get("id", ""))
 
         # Use grounding context for comprehensive facts
@@ -273,10 +261,7 @@ class KGRetrievalService:
             artifact_names = [str(item.get("name", "")) for item in items if item.get("name")]
 
         if not artifact_names:
-            return (
-                None if settings.graph_backend == "hybrid"
-                else RetrievalResult(status="no_data", fail_reason="未找到该朝代相关文物")
-            )
+            return RetrievalResult(status="no_data", fail_reason="未找到该朝代相关文物")
 
         raw_record = {
             "dynasty": dynasty_name,
@@ -307,10 +292,7 @@ class KGRetrievalService:
             None,
         )
         if not matched:
-            return (
-                None if settings.graph_backend == "hybrid"
-                else RetrievalResult(status="no_data", fail_reason="知识图谱统计中未命中该博物馆")
-            )
+            return RetrievalResult(status="no_data", fail_reason="知识图谱统计中未命中该博物馆")
 
         museum = str(matched.get("name", museum_name))
         count = matched.get("count", 0)
@@ -344,10 +326,7 @@ class KGRetrievalService:
         work_names = [str(item.get("name", "")) for item in items if item.get("name")]
 
         if not work_names:
-            return (
-                None if settings.graph_backend == "hybrid"
-                else RetrievalResult(status="no_data", fail_reason="未找到该作者的其他作品")
-            )
+            return RetrievalResult(status="no_data", fail_reason="未找到该作者的其他作品")
 
         source_name = str(items[0].get("museum", "")) if items else ""
         source_url = str(items[0].get("detail_url", "")) if items else ""
@@ -572,10 +551,8 @@ class KGRetrievalService:
 
     # ── Utility ────────────────────────────────────────────────
 
-    def _no_data_or_fallback(self, reason: str) -> RetrievalResult | None:
-        """Return no_data in remote mode, None in hybrid (triggers mock fallback)."""
-        if settings.graph_backend == "hybrid":
-            return None
+    def _no_data_or_fallback(self, reason: str) -> RetrievalResult:
+        """Return no_data regardless of mode. Mock fallback only triggers on network exceptions."""
         return RetrievalResult(status="no_data", fail_reason=reason)
 
     def _resolve_object_id(self, artifact_name: str) -> str | None:
