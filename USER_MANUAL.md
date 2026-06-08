@@ -1,6 +1,6 @@
 # 文物知识问答子系统 — 用户使用手册
 
-版本：v1.1 | 更新日期：2026-06-04
+版本：v1.2 | 更新日期：2026-06-08
 
 ---
 
@@ -25,7 +25,32 @@
 | 环境 | 地址 |
 |------|------|
 | 本地开发 | `http://localhost:5173` |
+| 局域网 | `http://你的IP:5173`（见下方 2.1.1） |
 | Docker 部署 | `http://localhost:5173` |
+
+#### 2.1.1 局域网访问（开发联调）
+
+为了让 Web 端能跳转到本系统，前端已绑定 `0.0.0.0`。获取本机 IP：
+
+```powershell
+ipconfig | findstr "IPv4"
+```
+
+Web 端通过 `http://<你的IP>:5173` 访问即可。
+
+#### 2.1.2 Token 鉴权（必读）
+
+系统要求**双重认证**：`X-Api-Key` + `Authorization` token。前端代码已内置 `X-Api-Key=qa-demo-key`，但 `Authorization` token 需由 Web 端用户登录后通过跳转携带，或开发者手动注入。
+
+**开发测试时**（无 Web 端跳转），打开页面后按 F12 → Console，粘贴以下代码回车：
+
+```js
+localStorage.setItem('auth_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhZG1pbi1tYW5hZ2VtZW50LXN5c3RlbSIsInN1YiI6IjEiLCJ1c2VySWQiOjEsInVzZXJuYW1lIjoiYWRtaW4iLCJ1c2VyVHlwZSI6IkFETUlOIiwicm9sZUlkIjoxLCJwZXJtaXNzaW9ucyI6WyJhcnRpZmFjdDp2aWV3IiwiYXJ0aWZhY3Q6YWRkIiwiYXJ0aWZhY3Q6ZWRpdCIsImFydGlmYWN0OmRlbGV0ZSIsImFydGlmYWN0OmltcG9ydCIsImFydGlmYWN0OmV4cG9ydCIsInVzZXI6dmlldyIsInVzZXI6c3RhdHVzIiwiY29udGVudDp2aWV3IiwiY29udGVudDpyZXZpZXciLCJsb2c6dmlldyIsImRhc2hib2FyZDp2aWV3Il0sImV4cCI6MTc4MDkzMjU3Mn0.KuFPfUrMU10PgmQapIOquLarWwJ93gHCP9aI7dqOcmY')
+```
+
+然后 **F5 刷新页面**。token 会持久化到 localStorage，之后每次打开都能直接使用。如需切换 token（如从管理员换到普通用户），再次执行上述代码即可覆盖。
+
+> **注意**：token 有过期时间，若收到 401 请联系数据组获取新 token 并重新执行上述步骤。
 
 系统依赖三个服务，启动后自动连接：
 
@@ -272,11 +297,16 @@ A: 系统有 IP 级别限流（60 次/60 秒窗口）。正常使用不会触发
 
 ```
 浏览器 (:5173) → Spring Boot (:8081) → FastAPI RAG (:8000) → KG API
-                 ├ 鉴权 (X-Api-Key)    ├ 意图分类 (16种)
-                 ├ 限流 (60次/60s)     ├ 实体抽取 (22个别名)
-                 ├ 历史/反馈 (H2)      ├ Cypher 查询构建
-                 └ CORS                ├ KG 检索 (hybrid模式)
-                                       └ 答案生成 (rule/auto)
+                 ├ 鉴权 (X-Api-Key + Authorization)
+                 ├ 限流 (60次/60s)
+                 ├ 历史/反馈 (H2)
+                 ├ CORS
+                 └ Token 透传 (Authorization → X-Kg-Token)
+                                     ├ 意图分类 (16种)
+                                     ├ 实体抽取 (33个别名)
+                                     ├ 中/英文自适应搜索
+                                     ├ KG 检索 (hybrid模式)
+                                     └ 答案生成 (rule/auto)
 ```
 
 ### 8.2 环境变量
@@ -299,6 +329,9 @@ RAG 服务（`rag-service-node/.env`）：
 | `qa_llm_api_url` | LLM API 地址 | DeepSeek API |
 | `qa_llm_model` | LLM 模型名 | `deepseek-chat` |
 | `qa_llm_api_key` | LLM API 密钥 | — |
+| `qa_kg_api_key` | KG API JWT 令牌（开发兜底） | — |
+| `qa_kg_api_key_header` | KG API 鉴权请求头名 | `Authorization` |
+| `qa_kg_api_key_prefix` | KG API 鉴权前缀 | `Bearer ` |
 
 ### 8.3 运行测试
 

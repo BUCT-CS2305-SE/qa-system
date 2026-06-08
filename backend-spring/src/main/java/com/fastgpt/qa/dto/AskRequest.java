@@ -14,6 +14,8 @@ public class AskRequest {
 
     private String mode = "auto";
 
+    private String kgToken;
+
     public AskRequest() {
     }
 
@@ -26,6 +28,13 @@ public class AskRequest {
         this.question = question;
         this.sessionId = sessionId;
         this.mode = mode;
+    }
+
+    public AskRequest(String question, String sessionId, String mode, String kgToken) {
+        this.question = question;
+        this.sessionId = sessionId;
+        this.mode = mode;
+        this.kgToken = kgToken;
     }
 
     public String getQuestion() {
@@ -50,5 +59,13 @@ public class AskRequest {
 
     public void setMode(String mode) {
         this.mode = mode;
+    }
+
+    public String getKgToken() {
+        return kgToken;
+    }
+
+    public void setKgToken(String kgToken) {
+        this.kgToken = kgToken;
     }
 }

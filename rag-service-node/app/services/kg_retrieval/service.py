@@ -17,6 +17,8 @@ class KGRetrievalService:
 
     # ── Public entry ────────────────────────────────────────────
 
+    _current_kg_token: str | None = None
+
     def retrieve(self, template_name: str | None, query_text: str | None, parameters: dict[str, object]) -> RetrievalResult:
         if not template_name or not query_text:
             return RetrievalResult(status="no_data", fail_reason="未生成查询语句")
@@ -706,10 +708,11 @@ class KGRetrievalService:
             return json.loads(response.read().decode("utf-8", errors="replace"))
 
     def _add_auth_header(self, request: urllib.request.Request) -> None:
-        if settings.kg_api_key:
+        token = KGRetrievalService._current_kg_token or settings.kg_api_key
+        if token:
             request.add_header(
                 settings.kg_api_key_header,
-                settings.kg_api_key_prefix + settings.kg_api_key,
+                settings.kg_api_key_prefix + token,
             )
 
     def _normalize_text(self, value: str) -> str:
