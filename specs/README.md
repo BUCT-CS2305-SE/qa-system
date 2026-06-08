@@ -1,1 +1,5 @@
-占位目录：接口与数据规范（字段字典/OpenAPI/错误码/返回结构等）。
+# API / 数据规格文档
+
+| 文件 | 用途 |
+|------|------|
+| `api-contract.md` | `POST /api/qa/ask` / `POST /api/qa/feedback` / `GET /api/health` 契约定义 |

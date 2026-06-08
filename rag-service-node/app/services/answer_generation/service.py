@@ -34,6 +34,13 @@ class AnswerGenerationService:
         except Exception:
             artifact_display = record.get("artifact")
         record_for_answer = dict(record)
+        if artifact_display and artifact_display != record.get("artifact"):
+            record_artifact = record.get("artifact")
+            if isinstance(record_artifact, str) and isinstance(artifact_display, str):
+                norm_record = record_artifact.strip().lower()
+                norm_display = artifact_display.strip().lower()
+                if norm_record not in norm_display and norm_display not in norm_record:
+                    artifact_display = record_artifact
         if artifact_display:
             record_for_answer["artifact"] = artifact_display
 
@@ -81,7 +88,27 @@ class AnswerGenerationService:
         if intent == "artifact_type":
             return f"{record['artifact']}属于{record['type']}类型。"
         if intent == "artifact_description":
-            return f"{record['artifact']}的介绍如下：{record['description']}"
+            desc = record.get("description")
+            if desc and str(desc).strip():
+                return f"{record['artifact']}的介绍如下：{record['description']}"
+            parts = [f"{record['artifact']}的基本信息："]
+            if record.get("type") and str(record["type"]).strip() and str(record["type"]).strip() != "未知":
+                parts.append(f"类型为{record['type']}")
+            if record.get("material") and str(record["material"]).strip() and str(record["material"]).strip() != "未知":
+                parts.append(f"材质为{record['material']}")
+            if record.get("period") or record.get("dynasty"):
+                p = record.get("period") or record.get("dynasty")
+                if p and str(p).strip():
+                    parts.append(f"所属时期为{p}")
+            if record.get("dimensions") and str(record["dimensions"]).strip():
+                parts.append(f"尺寸为{record['dimensions']}")
+            if record.get("museum") or record.get("source_name"):
+                m = record.get("museum") or record.get("source_name")
+                if m and str(m).strip():
+                    parts.append(f"现藏于{m}")
+            if len(parts) == 1:
+                return f"{record['artifact']}的详细信息暂无。"
+            return "。".join(parts) + "。"
         if intent == "artifact_dimensions":
             return f"{record['artifact']}的尺寸信息为{record['dimensions']}。"
         if intent == "painting_author":

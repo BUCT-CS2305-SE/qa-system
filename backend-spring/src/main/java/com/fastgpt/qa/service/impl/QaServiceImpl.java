@@ -46,7 +46,7 @@ public class QaServiceImpl implements QaService {
 
         try {
             Timer.Sample sample = Timer.start(meterRegistry);
-            AskResponse resp = ragClient.callRag(question, request.getSessionId(), request.getMode());
+            AskResponse resp = ragClient.callRag(question, request.getSessionId(), request.getMode(), request.getKgToken());
             sample.stop(meterRegistry.timer("qa.rag.call.duration"));
 
             if (resp != null) {

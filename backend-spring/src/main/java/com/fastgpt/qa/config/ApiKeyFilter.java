@@ -28,12 +28,16 @@ public class ApiKeyFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        // Ensure CORS preflight can succeed even when API key auth is enabled.
-        // NOTE: CORS headers are normally added by Spring MVC CorsConfig, but the browser preflight may be
-        // blocked earlier by this filter if we don't allow OPTIONS or return CORS headers.
+        String path = httpRequest.getRequestURI();
+
         if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
-            addCorsHeadersIfPresent(httpRequest, httpResponse);
+            addCorsHeaders(httpRequest, httpResponse);
             httpResponse.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
+        }
+
+        if (path.startsWith("/api/qa/health") || path.startsWith("/h2-console")) {
+            chain.doFilter(request, response);
             return;
         }
 
@@ -42,38 +46,40 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
-        String path = httpRequest.getRequestURI();
-        if (path.startsWith("/api/qa/health")) {
-            chain.doFilter(request, response);
+        String apiKey = httpRequest.getHeader("X-Api-Key");
+        if (!requiredApiKey.equals(apiKey)) {
+            logger.warn("unauthorized request (missing X-Api-Key) from {} to {}",
+                    httpRequest.getRemoteAddr(), path);
+            reject(httpResponse, "未授权访问");
             return;
         }
 
-        String apiKey = httpRequest.getHeader("X-Api-Key");
-        if (!requiredApiKey.equals(apiKey)) {
-            logger.warn("unauthorized request from {}:{} to {}",
-                    httpRequest.getRemoteAddr(), httpRequest.getRemotePort(), path);
-
-            addCorsHeadersIfPresent(httpRequest, httpResponse);
-            httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            httpResponse.setContentType("application/json;charset=UTF-8");
-            httpResponse.getWriter().write("{\"code\":401,\"message\":\"未授权访问\"}");
+        String auth = httpRequest.getHeader("Authorization");
+        if (auth == null || !auth.startsWith("Bearer ") || auth.length() < 20) {
+            logger.warn("unauthorized request (missing Authorization) from {} to {}",
+                    httpRequest.getRemoteAddr(), path);
+            reject(httpResponse, "缺少用户凭证，请通过Web端登录后访问");
             return;
         }
 
         chain.doFilter(request, response);
     }
 
-    private void addCorsHeadersIfPresent(HttpServletRequest req, HttpServletResponse resp) {
-        String origin = req.getHeader("Origin");
-        if (origin == null || origin.isBlank()) {
-            return;
+    private void reject(HttpServletResponse resp, String msg) throws IOException {
+        addCorsHeaders(null, resp);
+        resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        resp.setContentType("application/json;charset=UTF-8");
+        resp.getWriter().write("{\"code\":401,\"message\":\"" + msg + "\"}");
+    }
+
+    private void addCorsHeaders(HttpServletRequest req, HttpServletResponse resp) {
+        String origin = (req != null) ? req.getHeader("Origin") : null;
+        if (origin != null && !origin.isBlank()) {
+            resp.setHeader("Access-Control-Allow-Origin", origin);
+            resp.setHeader("Vary", "Origin");
+        } else {
+            resp.setHeader("Access-Control-Allow-Origin", "*");
         }
-        // align to CorsConfig allowedOrigins
-        if (!origin.equals("http://localhost:5173") && !origin.equals("http://127.0.0.1:5173")) {
-            return;
-        }
-        resp.setHeader("Access-Control-Allow-Origin", origin);
-        resp.setHeader("Vary", "Origin");
         resp.setHeader("Access-Control-Allow-Credentials", "true");
         resp.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
         resp.setHeader("Access-Control-Allow-Headers", "*");

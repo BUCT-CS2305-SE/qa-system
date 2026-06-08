@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  rag-service:
+    build:
+      context: ./rag-service-node
+      dockerfile: Dockerfile
+    container_name: qa-rag-service
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./rag-service-node/.env
+    environment:
+      - qa_graph_backend=hybrid
+      - qa_kg_api_base_url=https://se-cs2305.yazs.top
+    volumes:
+      - ./rag-service-node/data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  backend-spring:
+    build:
+      context: ./backend-spring
+      dockerfile: Dockerfile
+    container_name: qa-backend
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - qa.rag.ask-url=http://rag-service:8000/api/qa/ask
+      - qa.rag.feedback-url=http://rag-service:8000/api/qa/feedback
+      - qa.rag.summary-url=http://rag-service:8000/api/qa/summary
+      - qa.auth.api-key=qa-demo-key
+    depends_on:
+      rag-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/qa/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web-frontend:
+    build:
+      context: ./web-frontend
+      dockerfile: Dockerfile
+    container_name: qa-frontend
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_BASE=http://backend-spring:8081
+      - VITE_API_KEY=qa-demo-key
+    depends_on:
+      - backend-spring
+    restart: unless-stopped

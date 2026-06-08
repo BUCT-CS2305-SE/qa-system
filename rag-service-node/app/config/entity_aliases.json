@@ -1,24 +1,28 @@
 {
   "artifact": [
-    {"canonical_name": "Admonitions Scroll", "aliases": ["Admonitions Scroll", "Nushi zhen tu", "女史箴图", "女史箴"]},
-    {"canonical_name": "Bronze Galloping Horse", "aliases": ["Bronze Galloping Horse", "Ma Ta Fei Yan", "马踏飞燕", "青铜奔马"]},
-    {"canonical_name": "Along the River During the Qingming Festival", "aliases": ["Along the River During the Qingming Festival", "Qingming Shanghe Tu", "清明上河图"]},
-    {"canonical_name": "Tea Bowl and Dish", "aliases": ["Tea Bowl and Dish", "Tea Bowl"]}
+    {"canonical_name": "tea bowl", "aliases": ["tea bowl", "茶碗", "茶盏", "Tea Bowl", "漆茶碗"]},
+    {"canonical_name": "bronze", "aliases": ["bronze", "青铜", "铜器", "Bronze", "铜"]},
+    {"canonical_name": "vase", "aliases": ["vase", "花瓶", "瓶", "Vase", "瓷瓶", "壶"]},
+    {"canonical_name": "painting", "aliases": ["painting", "画", "绘画", "Painting", "画卷", "图"]},
+    {"canonical_name": "porcelain", "aliases": ["porcelain", "瓷器", "Porcelain", "瓷"]},
+    {"canonical_name": "jade", "aliases": ["jade", "玉器", "玉", "Jade"]},
+    {"canonical_name": "ceramic", "aliases": ["ceramic", "陶瓷", "Ceramic"]}
   ],
   "museum": [
-    {"canonical_name": "The Metropolitan Museum of Art", "aliases": ["Metropolitan Museum", "The Met", "Metropolitan Museum of Art"]},
-    {"canonical_name": "The British Museum", "aliases": ["British Museum", "The British Museum"]},
-    {"canonical_name": "Art Institute of Chicago", "aliases": ["Art Institute of Chicago"]},
-    {"canonical_name": "Cleveland Museum of Art", "aliases": ["Cleveland Museum of Art", "Cleveland Museum"]}
+    {"canonical_name": "Art Institute of Chicago", "aliases": ["Art Institute of Chicago", "芝加哥博物馆", "芝加哥艺术博物馆", "芝加哥艺术学院", "Chicago"]},
+    {"canonical_name": "Brooklyn Museum", "aliases": ["Brooklyn Museum", "Brooklyn", "布鲁克林博物馆", "布鲁克林"]},
+    {"canonical_name": "Princeton University Art Museum", "aliases": ["Princeton University Art Museum", "Princeton", "普林斯顿", "普林斯顿大学艺术博物馆"]},
+    {"canonical_name": "British Museum", "aliases": ["British Museum", "大英博物馆", "英国博物馆", "不列颠博物馆"]},
+    {"canonical_name": "Metropolitan Museum of Art", "aliases": ["Metropolitan Museum of Art", "大都会博物馆", "大都会", "Met", "The Met"]},
+    {"canonical_name": "The Palace Museum", "aliases": ["The Palace Museum", "故宫博物院", "故宫", "北京故宫"]}
   ],
   "dynasty": [
     {"canonical_name": "Tang Dynasty", "aliases": ["Tang Dynasty", "Tang", "唐", "唐代", "唐朝"]},
-    {"canonical_name": "Song Dynasty", "aliases": ["Song Dynasty", "Song", "宋", "宋代", "宋朝"]},
-    {"canonical_name": "Eastern Han", "aliases": ["Eastern Han", "Eastern Han Dynasty", "东汉", "东汉时期"]},
-    {"canonical_name": "Ming Dynasty", "aliases": ["Ming Dynasty", "Ming", "明", "明代", "明朝"]}
+    {"canonical_name": "Song Dynasty", "aliases": ["Song Dynasty", "Song", "宋", "宋代", "宋朝", "北宋", "南宋"]},
+    {"canonical_name": "Ming Dynasty", "aliases": ["Ming Dynasty", "Ming", "明", "明代", "明朝"]},
+    {"canonical_name": "Qing dynasty", "aliases": ["Qing dynasty", "Qing", "清", "清代", "清朝"]}
   ],
   "artist": [
-    {"canonical_name": "Gu Kaizhi", "aliases": ["Gu Kaizhi"]},
-    {"canonical_name": "Zhang Zeduan", "aliases": ["Zhang Zeduan"]}
+    {"canonical_name": "unknown", "aliases": ["unknown"]}
   ]
 }
