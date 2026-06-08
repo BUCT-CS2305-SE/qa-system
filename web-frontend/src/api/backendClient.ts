@@ -42,7 +42,7 @@ export type BackendHistoryItem = {
   createdAt: string;
 };
 
-const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8081';
+const BASE_URL = import.meta.env.VITE_API_BASE != null ? import.meta.env.VITE_API_BASE : 'http://127.0.0.1:8081';
 const API_KEY = import.meta.env.VITE_API_KEY ?? 'qa-demo-key';
 
 const AUTH_TOKEN_KEY = 'auth_token';
