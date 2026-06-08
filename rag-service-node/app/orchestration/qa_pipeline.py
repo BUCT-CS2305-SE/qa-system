@@ -98,6 +98,9 @@ class QAPipeline:
             )
 
         # ── KG retrieval ────────────────────────────────────────
+        if request.kg_token:
+            from app.services.kg_retrieval.service import KGRetrievalService
+            KGRetrievalService._current_kg_token = request.kg_token
         query_plan = self.query_builder.build(understanding)
         retrieval = self.retrieval_service.retrieve(query_plan.template_name, query_plan.query_text, query_plan.parameters)
         self.logging_service.record_query(trace_id, request.question, understanding, query_plan, retrieval)

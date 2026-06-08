@@ -6,6 +6,7 @@ import com.fastgpt.qa.model.FeedbackEntity;
 import com.fastgpt.qa.repository.FeedbackRepository;
 import com.fastgpt.qa.service.QaService;
 import com.fastgpt.qa.service.RagClient;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,12 @@ public class QaController {
     }
 
     @PostMapping("/ask")
-    public ResponseEntity<AskResponse> ask(@Validated @RequestBody AskRequest request) {
+    public ResponseEntity<AskResponse> ask(@Validated @RequestBody AskRequest request,
+                                           HttpServletRequest httpRequest) {
+        String auth = httpRequest.getHeader("Authorization");
+        if (auth != null && auth.startsWith("Bearer ")) {
+            request.setKgToken(auth.substring(7));
+        }
         AskResponse resp = qaService.ask(request);
         return ResponseEntity.ok(resp);
     }

@@ -45,10 +45,16 @@ export type BackendHistoryItem = {
 const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8081';
 const API_KEY = import.meta.env.VITE_API_KEY ?? 'qa-demo-key';
 
+const AUTH_TOKEN_KEY = 'auth_token';
+
 function authHeaders(): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (API_KEY) {
         headers['X-Api-Key'] = API_KEY;
+    }
+    const userToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (userToken) {
+        headers['Authorization'] = `Bearer ${userToken}`;
     }
     return headers;
 }

@@ -10,6 +10,7 @@ class QAAskRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, description="会话标识")
     user_id: Optional[str] = Field(default=None, description="用户标识")
     mode: str = Field(default="auto", description="处理模式: auto / rule / llm")
+    kg_token: Optional[str] = Field(default=None, description="KG API 用户 token（透传自前端）")
 
 
 class QAAskResponse(BaseModel):

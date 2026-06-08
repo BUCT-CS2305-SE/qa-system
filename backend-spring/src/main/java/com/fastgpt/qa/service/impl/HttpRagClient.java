@@ -44,9 +44,17 @@ public class HttpRagClient implements RagClient {
 
     @Override
     public AskResponse callRag(String question, String sessionId, String mode) throws Exception {
-        AskRequest req = new AskRequest(question, sessionId, mode);
+        return callRag(question, sessionId, mode, null);
+    }
+
+    @Override
+    public AskResponse callRag(String question, String sessionId, String mode, String kgToken) throws Exception {
+        AskRequest req = new AskRequest(question, sessionId, mode, kgToken);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        if (kgToken != null && !kgToken.isEmpty()) {
+            headers.set("X-Kg-Token", "Bearer " + kgToken);
+        }
         HttpEntity<AskRequest> entity = new HttpEntity<>(req, headers);
 
         int attempt = 0;
