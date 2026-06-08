@@ -55,8 +55,10 @@ class LlmService:
             for i, fact in enumerate(facts, 1):
                 s, p, o = fact.get("subject", ""), fact.get("predicate", ""), fact.get("object", "")
                 src = fact.get("source_name", "")
-                if s and p and o:
-                    line = f"  {i}. {s} 的 {p} = {o}"
+                if s and p:
+                    line = f"  {i}. {s} 的 {p}"
+                    if o and str(o).strip():
+                        line += f" = {o}"
                     if src:
                         line += f"（来源：{src}）"
                     parts.append(line)

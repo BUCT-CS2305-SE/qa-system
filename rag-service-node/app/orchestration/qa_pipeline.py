@@ -33,6 +33,13 @@ class QAPipeline:
         trace_id = self._trace_id()
         understanding = self.understanding_service.understand(request.question, request.session_id)
 
+        # ── Unknown intent → try entity-based fallback ───────────
+        if understanding.intent == "unknown" and understanding.entities:
+            default_intent, default_template = self._default_intent_for_entities(understanding.entities)
+            if default_intent and default_template:
+                understanding.intent = default_intent
+                understanding.constraints["template_name"] = default_template
+
         # ── Unknown intent → try LLM chat fallback ──────────────
         if understanding.intent == "unknown":
             self.logging_service.record_understanding_failure(trace_id, request.question, understanding)
@@ -58,6 +65,7 @@ class QAPipeline:
                 except Exception:
                     pass
 
+            self._record_conversation(request.session_id, request.question, understanding.fail_reason or "问题无法识别", understanding)
             return QAAskResponse(
                 request_id=trace_id,
                 answer=understanding.fail_reason or "问题无法识别",
@@ -158,6 +166,17 @@ class QAPipeline:
             summary=self.logging_service.summarize_queries().model_dump(),
         )
 
+    def _default_intent_for_entities(self, entities: dict) -> tuple[str | None, str | None]:
+        if entities.get("artifact"):
+            return "artifact_description", "artifact_description_query"
+        if entities.get("museum"):
+            return "museum_count", "museum_count_query"
+        if entities.get("dynasty"):
+            return "dynasty_representative_artifacts", "dynasty_representative_query"
+        if entities.get("artist"):
+            return "artist_biography", "artist_biography_query"
+        return None, None
+
     def _trace_id(self) -> str:
         return datetime.now().strftime("t%Y%m%d_%H%M%S")
 
@@ -168,5 +187,28 @@ class QAPipeline:
         for etype, mentions in (understanding.entities or {}).items():
             if mentions:
                 extracted[etype] = mentions[0].canonical_name
+        if not extracted:
+            topic = self._infer_topic_from_question(question)
+            if topic:
+                extracted["artifact"] = topic
         self.context_resolver.record_turn(session_id, "user", question, extracted, getattr(understanding, "intent", ""))
         self.context_resolver.record_turn(session_id, "assistant", answer, extracted, getattr(understanding, "intent", ""))
+
+    def _infer_topic_from_question(self, question: str) -> str | None:
+        import re
+        topic = question.strip()
+        strip_patterns = [
+            r"(介绍一下|请介绍|介绍|解释一下|说说|讲讲|什么是|是什么|说什么|怎么说|是什么意思)\s*",
+            r"\s*(的|了|吗|呢|吧|啊|呀)\??$",
+            r"\s*\?+$",
+            r"^(请问|请|帮我|给我|我想|我要)\s*",
+        ]
+        for pattern in strip_patterns:
+            topic = re.sub(pattern, "", topic)
+        topic = topic.strip(" ?,.。，；：!！\"'\"\"")
+        if not topic or len(topic) < 2:
+            return None
+        pronoun_tokens = {"它", "他", "她", "其", "这个", "那个", "这件", "那件", "这些", "那些", "该文物"}
+        if topic in pronoun_tokens:
+            return None
+        return topic

@@ -22,6 +22,7 @@ class InputUnderstandingService:
         intent, confidence, template_name = self.intent_classifier.classify(normalized, entities)
         entities, _topic_switched = self.context_resolver.resolve(normalized, entities, intent, session_id)
         entities = self._infer_missing_entities(normalized, intent, entities)
+        intent, template_name = self._align_intent_to_entities(normalized, intent, entities, template_name)
         if intent == "unknown":
             return UnderstandingResult(
                 normalized_question=normalized,
@@ -43,6 +44,57 @@ class InputUnderstandingService:
             confidence=confidence,
         )
 
+    def _align_intent_to_entities(self, normalized: str, intent: str, entities: dict[str, list[EntityMention]], template_name: str | None) -> tuple[str, str | None]:
+        artifact_intents = {
+            "artifact_museum",
+            "artifact_period",
+            "artifact_material",
+            "artifact_type",
+            "artifact_description",
+            "artifact_dimensions",
+            "recommended_artifacts",
+            "painting_author",
+            "multi_hop",
+            "path_query",
+            "compare_artifacts",
+        }
+        artist_intents = {"artist_biography", "same_artist_works"}
+        dynasty_intents = {"artifact_statistics", "dynasty_representative_artifacts"}
+
+        if intent in artifact_intents and not entities.get("artifact"):
+            if entities.get("museum"):
+                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+                if alt_intent != "unknown" and alt_intent not in artifact_intents:
+                    return alt_intent, alt_template
+            if entities.get("dynasty"):
+                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+                if alt_intent != "unknown" and alt_intent not in artifact_intents:
+                    return alt_intent, alt_template
+            if entities.get("artist"):
+                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+                if alt_intent != "unknown" and alt_intent not in artifact_intents:
+                    return alt_intent, alt_template
+
+        if intent in artist_intents and not entities.get("artist"):
+            if entities.get("dynasty"):
+                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+                if alt_intent != "unknown" and alt_intent not in artist_intents:
+                    return alt_intent, alt_template
+
+        if intent in dynasty_intents and not entities.get("dynasty"):
+            if entities.get("artifact"):
+                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+                if alt_intent != "unknown" and alt_intent not in dynasty_intents:
+                    return alt_intent, alt_template
+
+        if intent == "museum_count" and not entities.get("museum"):
+            if entities.get("dynasty"):
+                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+                if alt_intent != "unknown" and alt_intent != "museum_count":
+                    return alt_intent, alt_template
+
+        return intent, template_name
+
     def _infer_missing_entities(self, normalized: str, intent: str, entities: dict[str, list[EntityMention]]) -> dict[str, list[EntityMention]]:
         artifact_intents = {
             "artifact_museum",
@@ -61,6 +113,21 @@ class InputUnderstandingService:
         dynasty_intents = {"artifact_statistics", "dynasty_representative_artifacts"}
 
         if intent in artifact_intents and not entities.get("artifact"):
+            likely_type = self._detect_entity_type_hint(normalized)
+            if likely_type == "museum" and not entities.get("museum"):
+                inferred = self._infer_museum_entity(normalized, entities)
+                if inferred.get("museum"):
+                    return inferred
+            if likely_type == "artist" and not entities.get("artist"):
+                inferred = self._infer_artist_entity(normalized, entities, intent)
+                if inferred.get("artist"):
+                    return inferred
+            if likely_type == "dynasty" and not entities.get("dynasty"):
+                inferred = self._infer_dynasty_entity(normalized, entities, intent)
+                if inferred.get("dynasty"):
+                    return inferred
+            if entities.get("museum") or entities.get("artist") or entities.get("dynasty"):
+                return entities
             return self._infer_artifact_entity(normalized, entities, intent)
 
         if intent in artist_intents and not entities.get("artist"):
@@ -73,6 +140,28 @@ class InputUnderstandingService:
             return self._infer_dynasty_entity(normalized, entities, intent)
 
         return entities
+
+    def _detect_entity_type_hint(self, text: str) -> str | None:
+        if any(w in text for w in ["博物馆", "博物院", "museum", "Museum"]):
+            return "museum"
+        if any(w in text for w in ["朝", "代", "Dynasty", "dynasty", "时期"]):
+            return "dynasty"
+        if any(w in text for w in ["作者", "画家", "艺术家", "artist", "Artist"]):
+            return "artist"
+        return None
+
+    _COMMON_PREFIX_PATTERNS = [
+        r"^介绍一下\s*",
+        r"^请介绍\s*",
+        r"^介绍\s*",
+        r"^什么是\s*",
+        r"^是什么\s*",
+    ]
+
+    def _strip_common_prefixes(self, text: str) -> str:
+        for pattern in self._COMMON_PREFIX_PATTERNS:
+            text = re.sub(pattern, "", text)
+        return text.strip()
 
     _INTENT_KEYWORD_STRIP: dict[str, list[str]] = {
         "artifact_museum": ["museum", "which museum", "where is", "collection of", "located in"],
@@ -96,6 +185,9 @@ class InputUnderstandingService:
 
     def _infer_artifact_entity(self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = "") -> dict[str, list[EntityMention]]:
         if entities.get("artifact"):
+            return entities
+
+        if self._detect_entity_type_hint(normalized) is not None:
             return entities
 
         candidate = normalized
@@ -148,9 +240,10 @@ class InputUnderstandingService:
         for pattern in artifact_patterns:
             candidate = re.sub(pattern, "", candidate)
 
+        candidate = self._strip_common_prefixes(candidate)
         candidate = candidate.strip(" ?,.，。；：!！")
         candidate = self._strip_english_keywords(candidate, intent)
-        if not candidate:
+        if not candidate or self._detect_entity_type_hint(candidate) is not None:
             return entities
 
         inferred_entities = dict(entities)
@@ -180,9 +273,10 @@ class InputUnderstandingService:
         for pattern in artist_patterns:
             candidate = re.sub(pattern, "", candidate)
 
+        candidate = self._strip_common_prefixes(candidate)
         candidate = candidate.strip(" ?,.。，；：!！")
         candidate = self._strip_english_keywords(candidate, intent)
-        if not candidate:
+        if not candidate or self._detect_entity_type_hint(candidate) == "museum":
             return entities
 
         inferred_entities = dict(entities)
@@ -209,9 +303,10 @@ class InputUnderstandingService:
         for pattern in museum_patterns:
             candidate = re.sub(pattern, "", candidate)
 
+        candidate = self._strip_common_prefixes(candidate)
         candidate = candidate.strip(" ?,.，。；：!！")
         candidate = self._strip_english_keywords(candidate, "museum_count")
-        if not candidate:
+        if not candidate or self._detect_entity_type_hint(candidate) == "dynasty":
             return entities
 
         inferred_entities = dict(entities)
@@ -240,9 +335,10 @@ class InputUnderstandingService:
         for pattern in dynasty_patterns:
             candidate = re.sub(pattern, "", candidate)
 
+        candidate = self._strip_common_prefixes(candidate)
         candidate = candidate.strip(" ?,.。，；：!！")
         candidate = self._strip_english_keywords(candidate, intent)
-        if not candidate:
+        if not candidate or self._detect_entity_type_hint(candidate) == "museum":
             return entities
 
         inferred_entities = dict(entities)

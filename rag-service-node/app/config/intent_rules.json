@@ -57,13 +57,13 @@
     "intent": "dynasty_representative_artifacts",
     "required_entity": "dynasty",
     "template_name": "dynasty_representative_query",
-    "keywords": ["代表性文物", "有哪些代表文物", "有哪些文物", "什么文物", "representative", "artifacts of"]
+    "keywords": ["代表性文物", "有哪些代表文物", "有哪些文物", "什么文物", "介绍", "representative", "artifacts of"]
   },
   {
     "intent": "museum_count",
     "required_entity": "museum",
     "template_name": "museum_count_query",
-    "keywords": ["收藏了多少件", "多少件中国文物", "一共有多少件", "收藏了多少", "馆藏", "count", "how many", "collection size"]
+    "keywords": ["收藏了多少件", "多少件中国文物", "一共有多少件", "收藏了多少", "馆藏", "博物馆", "博物院", "count", "how many", "collection size"]
   },
   {
     "intent": "same_artist_works",

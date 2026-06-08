@@ -1,146 +1,170 @@
 MOCK_RESULTS = {
     "artifact_museum_query": [
         {
-            "artifact": "Admonitions Scroll",
-            "museum": "The British Museum",
-            "source_name": "The British Museum",
-            "source_url": "https://www.britishmuseum.org/collection",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "museum": "Art Institute of Chicago",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
         }
     ],
     "artifact_period_query": [
         {
-            "artifact": "Bronze Galloping Horse",
-            "dynasty": "Eastern Han",
-            "source_name": "Gansu Provincial Museum",
-            "source_url": "https://example.org/artifact/bronze-horse",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "dynasty": "Qing dynasty (c. 1644)",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/artworks/134",
         }
     ],
     "artifact_material_query": [
         {
-            "artifact": "Bronze Galloping Horse",
-            "material": "Bronze",
-            "source_name": "Cultural Heritage KG",
-            "source_url": "https://example.org/artifact/bronze-horse",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "material": "朱砂黑漆雕刻装饰",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/artworks/134",
         }
     ],
     "artifact_type_query": [
         {
-            "artifact": "Tea Bowl and Dish",
-            "type": "Ceramic",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "type": "Vessel",
             "source_name": "Art Institute of Chicago",
             "source_url": "https://www.artic.edu/collection",
         }
     ],
     "artifact_description_query": [
         {
-            "artifact": "Tea Bowl and Dish",
-            "description": "A ceramic tea bowl and dish from the Chinese collection at the Art Institute of Chicago, featuring delicate glaze and refined craftsmanship typical of the period.",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "description": "A carved lacquer tea bowl from the Qing dynasty Qianlong period, featuring cinnabar and black lacquer with carved decoration.",
             "source_name": "Art Institute of Chicago",
-            "source_url": "https://www.artic.edu/collection",
+            "source_url": "https://www.artic.edu/artworks/134",
         }
     ],
     "artifact_dimensions_query": [
         {
-            "artifact": "Tea Bowl and Dish",
-            "dimensions": "Diameter 15.2cm, Height 6.3cm",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "dimensions": "5.6 x 10.9 cm (2 3/16 x 4 15/16 in.)",
             "source_name": "Art Institute of Chicago",
-            "source_url": "https://www.artic.edu/collection",
+            "source_url": "https://www.artic.edu/artworks/134",
         }
     ],
     "painting_author_query": [
         {
-            "artifact": "Along the River During the Qingming Festival",
-            "artist": "Zhang Zeduan",
-            "source_name": "The Palace Museum",
-            "source_url": "https://www.dpm.org.cn/collection/paint/228226.html",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "artist": "Unknown",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/artworks/134",
         }
     ],
     "artist_biography_query": [
         {
-            "artist": "Zhang Zeduan",
-            "biography": "Zhang Zeduan (c.1085-1145), courtesy name Zhengdao, was a famous painter of the Northern Song dynasty. His masterpiece 'Along the River During the Qingming Festival' is a treasure of Chinese painting.",
-            "source_name": "The Palace Museum",
-            "source_url": "https://www.dpm.org.cn",
+            "artist": "Unknown",
+            "biography": "Artist information not available.",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu",
         }
     ],
     "dynasty_representative_query": [
         {
-            "dynasty": "Tang Dynasty",
-            "artifacts": ["Tang Sancai Camel Carrying Musicians", "Yan Zhenqing's Draft of a Eulogy", "Yan Liben's Imperial Carriage"],
-            "source_name": "China Overseas Lost Cultural Relics KG",
+            "dynasty": "Qing dynasty",
+            "artifacts": ["漆茶碗乾隆禦制雕漆盞", "茶碗", "山形花器"],
+            "source_name": "中国海外流失文物知识图谱",
             "source_url": "https://se-cs2305.yazs.top/docs",
         }
     ],
     "museum_count_query": [
         {
-            "museum": "The Metropolitan Museum of Art",
-            "artifact_count": 1240,
-            "source_name": "The Metropolitan Museum of Art",
+            "museum": "Princeton University Art Museum",
+            "artifact_count": 3570,
+            "source_name": "Princeton University Art Museum",
+            "source_url": "https://artmuseum.princeton.edu/collections",
+        },
+        {
+            "museum": "Art Institute of Chicago",
+            "artifact_count": 1000,
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
+        },
+        {
+            "museum": "Brooklyn Museum",
+            "artifact_count": 720,
+            "source_name": "Brooklyn Museum",
+            "source_url": "https://www.brooklynmuseum.org/opencollection/collections",
+        },
+        {
+            "museum": "British Museum",
+            "artifact_count": 100,
+            "source_name": "British Museum",
+            "source_url": "https://www.britishmuseum.org/collection",
+        },
+        {
+            "museum": "Metropolitan Museum of Art",
+            "artifact_count": 49,
+            "source_name": "Metropolitan Museum of Art",
             "source_url": "https://www.metmuseum.org/art/collection",
-        }
+        },
     ],
     "recommended_artifacts_query": [
         {
-            "artifact": "Tea Bowl and Dish",
-            "recommendations": ["Longquan Celadon Vase", "Jun Ware Bowl", "Ding Ware Plate"],
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "recommendations": ["茶碗", "山形花器", "古青铜祭祀杯"],
             "source_name": "Art Institute of Chicago",
             "source_url": "https://www.artic.edu/collection",
         }
     ],
     "same_artist_works_query": [
         {
-            "artist": "Zhang Zeduan",
-            "works": ["Along the River During the Qingming Festival", "Spring Festival on the River", "Dragon Boat Race"],
-            "source_name": "The Palace Museum",
-            "source_url": "https://www.dpm.org.cn",
+            "artist": "Unknown",
+            "works": [],
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu",
         }
     ],
     "multi_hop_query": [
         {
-            "artifact": "Admonitions Scroll",
-            "path_nodes": ["Admonitions Scroll", "Zhang Hu", "Yuan Dynasty Collection", "Qianlong Emperor", "The British Museum"],
-            "path_relations": ["CREATED_BY", "COLLECTED_BY", "TRANSFERRED_TO", "COLLECTED_BY"],
-            "explanation": "《女史箴图》由顾恺之创作，历经张华题跋、元代宫廷收藏、乾隆皇帝珍藏，最终流失至大英博物馆。",
-            "source_name": "The British Museum",
-            "source_url": "https://www.britishmuseum.org/collection",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "path_nodes": ["漆茶碗乾隆禦制雕漆盞", "Qing dynasty (c. 1644)", "Art Institute of Chicago"],
+            "path_relations": ["BELONGS_TO_PERIOD", "STORED_IN"],
+            "explanation": "漆茶碗乾隆禦制雕漆盞属于Qing dynasty (c. 1644)，现藏于Art Institute of Chicago。",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
         }
     ],
     "compare_artifacts_query": [
         {
-            "artifact1": "Admonitions Scroll",
-            "artifact2": "Along the River During the Qingming Festival",
-            "dynasty1": "Eastern Jin",
-            "dynasty2": "Northern Song",
-            "material1": "Silk",
-            "material2": "Silk",
-            "museum1": "The British Museum",
-            "museum2": "The Palace Museum",
-            "dimensions1": "24.8cm × 348.2cm",
-            "dimensions2": "24.8cm × 528.7cm",
+            "artifact1": "漆茶碗乾隆禦制雕漆盞",
+            "artifact2": "茶碗",
+            "dynasty1": "Qing dynasty (c. 1644)",
+            "dynasty2": "Qing dynasty",
+            "material1": "朱砂黑漆雕刻装饰",
+            "material2": "Ceramic",
+            "museum1": "Art Institute of Chicago",
+            "museum2": "Princeton University Art Museum",
+            "dimensions1": "5.6 x 10.9 cm",
+            "dimensions2": "Unknown",
             "source_name": "Cultural Heritage KG",
             "source_url": "https://se-cs2305.yazs.top/docs",
         }
     ],
     "artifact_statistics_query": [
         {
-            "dynasty": "Tang Dynasty",
-            "total_artifacts": 156,
-            "types": ["Ceramic", "Painting", "Sculpture", "Calligraphy", "Bronze"],
-            "materials": ["Ceramic", "Silk", "Bronze", "Stone", "Paper"],
-            "museums": ["The British Museum", "The Metropolitan Museum of Art", "Tokyo National Museum", "Louvre Museum"],
-            "source_name": "China Overseas Lost Cultural Relics KG",
+            "dynasty": "Qing dynasty",
+            "total_artifacts": 5441,
+            "types": ["Vessel", "Ceramic", "Painting", "Sculpture", "Bronze"],
+            "materials": ["Ceramic", "Bronze", "Stone", "Paper", "Lacquer"],
+            "museums": ["Princeton University Art Museum", "Art Institute of Chicago", "Brooklyn Museum", "British Museum", "Metropolitan Museum of Art"],
+            "source_name": "中国海外流失文物知识图谱",
             "source_url": "https://se-cs2305.yazs.top/docs",
         }
     ],
     "path_query": [
         {
-            "artifact": "Admonitions Scroll",
-            "path_nodes": ["Admonitions Scroll", "Tang Dynasty Palace", "Qianlong Emperor", "Yuanmingyuan", "The British Museum"],
-            "path_relations": ["COLLECTED_BY", "COLLECTED_BY", "STORED_AT", "COLLECTED_BY"],
-            "node_types": ["Artifact", "Dynasty", "Artist", "Museum", "Museum"],
-            "explanation": "《女史箴图》原藏于唐代宫廷，后经乾隆皇帝收藏，曾存放于圆明园，1860年流失至大英博物馆。",
-            "source_name": "The British Museum",
-            "source_url": "https://www.britishmuseum.org/collection",
+            "artifact": "漆茶碗乾隆禦制雕漆盞",
+            "path_nodes": ["漆茶碗乾隆禦制雕漆盞", "Qing Dynasty", "Art Institute of Chicago"],
+            "path_relations": ["BELONGS_TO_PERIOD", "STORED_IN"],
+            "node_types": ["Artifact", "Dynasty", "Museum"],
+            "explanation": "漆茶碗乾隆禦制雕漆盞属于清朝乾隆年间，现藏于芝加哥艺术博物馆。",
+            "source_name": "Art Institute of Chicago",
+            "source_url": "https://www.artic.edu/collection",
         }
     ],
 }
