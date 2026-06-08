@@ -33,6 +33,13 @@ class QAPipeline:
         trace_id = self._trace_id()
         understanding = self.understanding_service.understand(request.question, request.session_id)
 
+        # ── Unknown intent → try entity-based fallback ───────────
+        if understanding.intent == "unknown" and understanding.entities:
+            default_intent, default_template = self._default_intent_for_entities(understanding.entities)
+            if default_intent and default_template:
+                understanding.intent = default_intent
+                understanding.constraints["template_name"] = default_template
+
         # ── Unknown intent → try LLM chat fallback ──────────────
         if understanding.intent == "unknown":
             self.logging_service.record_understanding_failure(trace_id, request.question, understanding)
@@ -157,6 +164,17 @@ class QAPipeline:
             code=ERROR_CODE_SUCCESS,
             summary=self.logging_service.summarize_queries().model_dump(),
         )
+
+    def _default_intent_for_entities(self, entities: dict) -> tuple[str | None, str | None]:
+        if entities.get("artifact"):
+            return "artifact_description", "artifact_description_query"
+        if entities.get("museum"):
+            return "museum_count", "museum_count_query"
+        if entities.get("dynasty"):
+            return "dynasty_representative_artifacts", "dynasty_representative_query"
+        if entities.get("artist"):
+            return "artist_biography", "artist_biography_query"
+        return None, None
 
     def _trace_id(self) -> str:
         return datetime.now().strftime("t%Y%m%d_%H%M%S")

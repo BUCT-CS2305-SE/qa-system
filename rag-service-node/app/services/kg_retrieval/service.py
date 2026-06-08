@@ -28,7 +28,7 @@ class KGRetrievalService:
                 return remote_result
 
         logger.info("KG data source: mock (template=%s)", template_name)
-        return self._retrieve_from_mock(template_name)
+        return self._retrieve_from_mock(template_name, parameters)
 
     # ── Remote dispatch ────────────────────────────────────────
 
@@ -111,18 +111,21 @@ class KGRetrievalService:
         if not object_id:
             return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
 
-        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
-        artifact = str(grounding.get("title", grounding.get("name", artifact_name)))
-        source_name = str(grounding.get("museum", "")) or None
-        source_url = str(grounding.get("source_url", "")) or None
-        facts_list: list[dict] = grounding.get("facts", []) if isinstance(grounding, dict) else []
+        g = self._get_artifact(object_id)
+        if g is None:
+            return RetrievalResult(status="no_data", fail_reason="文物详情接口调用失败")
+
+        artifact = str(g.get("title", g.get("name", artifact_name)))
+        source_name = str(g.get("museum", "")) or None
+        source_url = str(g.get("source_url", "")) or None
+        facts_list: list[dict] = g.get("facts", []) if isinstance(g, dict) else []
 
         field_info = self._FIELD_MAP.get(template_name, (None, None))
         grounding_field, display_key = field_info
 
         value = None
         if grounding_field:
-            value = grounding.get(grounding_field)
+            value = g.get(grounding_field)
         elif template_name == "painting_author_query":
             for fact in facts_list:
                 if fact.get("predicate") == "CREATED_BY":
@@ -139,8 +142,27 @@ class KGRetrievalService:
                         value = candidate
                         break
 
+        if value in (None, "") and template_name == "artifact_description_query":
+            raw_record = {
+                "id": object_id,
+                "artifact": artifact,
+                "description": "",
+                "type": str(g.get("type", "")),
+                "material": str(g.get("material", "")),
+                "period": str(g.get("period", "")),
+                "dimensions": str(g.get("dimensions", "")),
+                "museum": str(g.get("museum", "")),
+                "source_name": source_name,
+                "source_url": source_url,
+            }
+            facts = [
+                RetrievedFact(subject=artifact, predicate="description", object="",
+                              source_name=source_name, source_url=source_url),
+            ]
+            return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
+
         if value in (None, ""):
-            logger.info("KG grounding: field '%s' empty for artifact %s (id=%s), backend=%s",
+            logger.info("KG artifact: field '%s' empty for artifact %s (id=%s), backend=%s",
                          grounding_field or display_key, artifact_name, object_id, settings.graph_backend)
             return RetrievalResult(status="no_data", fail_reason="知识图谱属性为空")
 
@@ -168,10 +190,12 @@ class KGRetrievalService:
         if not object_id:
             return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
 
-        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
-        artifact = str(grounding.get("title", artifact_name))
-        museum_name = str(grounding.get("museum", "")) or None
-        source_url = str(grounding.get("source_url", "")) or None
+        g = self._get_artifact(object_id)
+        if g is None:
+            return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
+        artifact = str(g.get("title", artifact_name))
+        museum_name = str(g.get("museum", "")) or None
+        source_url = str(g.get("source_url", "")) or None
 
         related_payload = self._get_json(f"/api/artifacts/{object_id}/related?top_k=3&lang=zh")
         related_items = related_payload.get("data", []) if isinstance(related_payload, dict) else []
@@ -198,32 +222,31 @@ class KGRetrievalService:
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
-    # ── Artist biography (via /api/qa/grounding/{id}) ──
+    # ── Artist biography (via /api/artifacts/{id}) ──
 
     def _query_artist_biography(self, parameters: dict[str, object]) -> RetrievalResult | None:
         artist_name = str(parameters.get("artist_name", "")).strip()
         if not artist_name:
             return RetrievalResult(status="no_data", fail_reason="缺少作者名称")
 
-        # Search for the artist's artifact to get an object_id for grounding
-        # Fallback: the data team's /api/qa/grounding uses artifact IDs, not artist IDs.
-        # We search for the artist name and use the first matching artifact's grounding context.
         search_payload = self._get_json(f"/api/search?q={urllib.parse.quote(artist_name)}&page=1&page_size=1&lang=zh")
         candidates = search_payload.get("data", []) if isinstance(search_payload, dict) else []
         if not candidates:
             return RetrievalResult(status="no_data", fail_reason="未找到该作者相关信息")
         object_id = str(candidates[0].get("id", ""))
 
-        # Use grounding context for comprehensive facts
-        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
-        artist_field = grounding.get("artist") or grounding.get("author") or ""
-        biography = grounding.get("artist_biography") or grounding.get("artist_bio") or ""
+        g = self._get_artifact(object_id)
+        if g is None:
+            return RetrievalResult(status="no_data", fail_reason="文物详情接口调用失败")
+
+        artist_field = g.get("artist") or ""
+        biography = g.get("artist_biography") or ""
 
         raw_record = {
             "artist": artist_name,
             "biography": biography or f"{artist_name}的相关信息",
-            "source_name": str(grounding.get("source_name") or candidates[0].get("museum", "")),
-            "source_url": str(grounding.get("source_url") or candidates[0].get("detail_url", "")),
+            "source_name": str(g.get("source_name") or candidates[0].get("museum", "")),
+            "source_url": str(g.get("source_url") or candidates[0].get("detail_url", "")),
         }
         facts = [
             RetrievedFact(
@@ -250,6 +273,7 @@ class KGRetrievalService:
                 data=payload, method="POST",
                 headers={"Content-Type": "application/json"},
             )
+            self._add_auth_header(req)
             with urllib.request.urlopen(req, timeout=settings.kg_api_timeout_seconds) as resp:
                 data = json.loads(resp.read())
             items = data.get("data", []) if isinstance(data, dict) else []
@@ -369,10 +393,14 @@ class KGRetrievalService:
         node_names = [str(n.get("name", n.get("id", "?"))) for n in nodes]
         relation_types = list({str(li.get("type", li.get("label", "?"))) for li in links})
 
-        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
-        artifact = str(grounding.get("title", artifact_name))
-        source_name = str(grounding.get("museum", "")) or "中国海外流失文物知识图谱"
-        source_url = str(grounding.get("source_url", f"{settings.kg_api_base_url}/docs"))
+        # ── Multi-hop ──
+
+        g = self._get_artifact(object_id)
+        if g is None:
+            return self._no_data_or_fallback("文物详情接口调用失败")
+        artifact = str(g.get("title", artifact_name))
+        source_name = str(g.get("museum", "")) or "中国海外流失文物知识图谱"
+        source_url = str(g.get("source_url", f"{settings.kg_api_base_url}/docs"))
 
         raw_record = {
             "artifact": artifact,
@@ -414,6 +442,7 @@ class KGRetrievalService:
             data=payload, method="POST",
             headers={"Content-Type": "application/json"},
         )
+        self._add_auth_header(req)
         try:
             with urllib.request.urlopen(req, timeout=settings.kg_api_timeout_seconds) as resp:
                 data = json.loads(resp.read())
@@ -510,10 +539,12 @@ class KGRetrievalService:
         node_types = [str(n.get("type", n.get("label", ""))) for n in nodes]
         relation_types = list({str(li.get("type", li.get("label", "?"))) for li in links})
 
-        grounding = self._get_json(f"/api/qa/grounding/{object_id}?lang=zh")
-        artifact = str(grounding.get("title", artifact_name))
-        source_name = str(grounding.get("museum", "")) or "中国海外流失文物知识图谱"
-        source_url = str(grounding.get("source_url", f"{settings.kg_api_base_url}/docs"))
+        g = self._get_artifact(object_id)
+        if g is None:
+            return self._no_data_or_fallback("文物详情接口调用失败")
+        artifact = str(g.get("title", artifact_name))
+        source_name = str(g.get("museum", "")) or "中国海外流失文物知识图谱"
+        source_url = str(g.get("source_url", f"{settings.kg_api_base_url}/docs"))
 
         raw_record = {
             "artifact": artifact,
@@ -532,8 +563,11 @@ class KGRetrievalService:
 
     # ── Mock fallback ──────────────────────────────────────────
 
-    def _retrieve_from_mock(self, template_name: str) -> RetrievalResult:
-        records = MOCK_RESULTS.get(template_name, [])
+    def _retrieve_from_mock(self, template_name: str, parameters: dict[str, object] = None) -> RetrievalResult:
+        all_records = MOCK_RESULTS.get(template_name, [])
+        if parameters:
+            all_records = self._filter_mock_records(all_records, parameters)
+        records = all_records
         facts = []
         for record in records:
             for key, value in record.items():
@@ -549,21 +583,77 @@ class KGRetrievalService:
         return RetrievalResult(status=status, facts=facts, raw_records=records,
                                fail_reason=None if records else "暂无相关数据")
 
-    # ── Utility ────────────────────────────────────────────────
+    def _filter_mock_records(self, records: list[dict], parameters: dict[str, object]) -> list[dict]:
+        filter_key = None
+        filter_value = None
+        if "museum_name" in parameters:
+            filter_key = "museum"
+            filter_value = str(parameters["museum_name"]).strip().lower()
+        elif "artifact_name" in parameters:
+            filter_key = "artifact"
+            filter_value = str(parameters["artifact_name"]).strip().lower()
+        elif "artist_name" in parameters:
+            filter_key = "artist"
+            filter_value = str(parameters["artist_name"]).strip().lower()
+        elif "dynasty_name" in parameters:
+            filter_key = "dynasty"
+            filter_value = str(parameters["dynasty_name"]).strip().lower()
+
+        if not filter_key or not filter_value:
+            return records
+
+        matched = [r for r in records if str(r.get(filter_key, "")).strip().lower() == filter_value]
+        if matched:
+            return matched
+        return records
+
+    def _get_artifact(self, object_id: str) -> dict | None:
+        try:
+            detail = self._get_json(f"/api/artifacts/{object_id}?lang=zh")
+        except Exception:
+            return None
+
+        facts = []
+        related = detail.get("related_entities", [])
+        if isinstance(related, list):
+            for rel in related:
+                facts.append({
+                    "predicate": rel.get("relation", ""),
+                    "object": rel.get("name", ""),
+                })
+
+        artist = (
+            detail.get("i18n", {}).get("artist_zh") or
+            detail.get("artist") or
+            detail.get("author") or ""
+        )
+        biography = detail.get("artist_biography") or detail.get("artist_bio") or ""
+
+        return {
+            "title": detail.get("i18n", {}).get("title_zh") or detail.get("name", ""),
+            "name": detail.get("name", ""),
+            "museum": detail.get("museum", ""),
+            "source_url": detail.get("detail_url", ""),
+            "source_name": detail.get("museum", ""),
+            "period": detail.get("period", ""),
+            "type": detail.get("type", ""),
+            "material": detail.get("material", ""),
+            "description": detail.get("description", ""),
+            "dimensions": detail.get("dimensions", ""),
+            "facts": facts,
+            "artist": artist,
+            "artist_biography": biography,
+            "artist_bio": biography,
+        }
 
     def _no_data_or_fallback(self, reason: str) -> RetrievalResult:
         """Return no_data regardless of mode. Mock fallback only triggers on network exceptions."""
         return RetrievalResult(status="no_data", fail_reason=reason)
 
     def _resolve_object_id(self, artifact_name: str) -> str | None:
-        payload = self._get_json(
-            f"/api/search?q={urllib.parse.quote(artifact_name)}&page=1&page_size=10&lang=zh")
-        candidates = payload.get("data", []) if isinstance(payload, dict) else []
+        candidates = self._search_candidates(artifact_name)
         if not candidates:
-            logger.info("KG search for '%s': 0 results", artifact_name)
             return None
-        logger.info("KG search for '%s': %d results, first=%s",
-                     artifact_name, len(candidates), candidates[0].get("id"))
         normalized_target = self._normalize_text(artifact_name)
         exact_match = next(
             (item for item in candidates
@@ -573,11 +663,42 @@ class KGRetrievalService:
         selected = exact_match or candidates[0]
         return str(selected.get("id")) if selected.get("id") is not None else None
 
+    def _search_candidates(self, name: str) -> list[dict]:
+        payload = self._get_json(
+            f"/api/search?q={urllib.parse.quote(name)}&page=1&page_size=10&lang=zh")
+        candidates = payload.get("data", []) if isinstance(payload, dict) else []
+        if candidates:
+            logger.info("KG search for '%s': %d results, first=%s",
+                         name, len(candidates), candidates[0].get("id"))
+            return candidates
+        logger.info("KG search for '%s': 0 results, trying keywords", name)
+        words = name.strip().lower().split()
+        for word in words:
+            if len(word) <= 2:
+                continue
+            kw_payload = self._get_json(
+                f"/api/search?q={urllib.parse.quote(word)}&page=1&page_size=10&lang=zh")
+            kw_candidates = kw_payload.get("data", []) if isinstance(kw_payload, dict) else []
+            if kw_candidates:
+                logger.info("KG search keyword '%s' for '%s': %d results",
+                             word, name, len(kw_candidates))
+                return kw_candidates
+        logger.info("KG search for '%s': no keyword match", name)
+        return []
+
     def _get_json(self, path: str) -> dict:
         base_url = settings.kg_api_base_url.rstrip("/")
         request = urllib.request.Request(f"{base_url}{path}", method="GET")
+        self._add_auth_header(request)
         with urllib.request.urlopen(request, timeout=settings.kg_api_timeout_seconds) as response:
             return json.loads(response.read().decode("utf-8", errors="replace"))
+
+    def _add_auth_header(self, request: urllib.request.Request) -> None:
+        if settings.kg_api_key:
+            request.add_header(
+                settings.kg_api_key_header,
+                settings.kg_api_key_prefix + settings.kg_api_key,
+            )
 
     def _normalize_text(self, value: str) -> str:
         return unescape(value).replace("�", "-").strip().lower()

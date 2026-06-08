@@ -24,6 +24,8 @@ _TOPIC_SWITCH_SIGNALS = [
     ]
 ]
 
+_ENTITY_TYPE_HINT_WORDS = ["博物馆", "博物院", "museum", "Museum", "朝代", "dynasty", "Dynasty"]
+
 
 class ContextResolver:
 
@@ -65,7 +67,7 @@ class ContextResolver:
 
         elif not entities:
             inherited = self._inherit_entity_from_history(recent)
-            if inherited:
+            if inherited and not self._question_introduces_new_entity(current_question, recent):
                 entities = inherited
 
         return entities, False
@@ -148,6 +150,22 @@ class ContextResolver:
                         return {key: [EntityMention(entity_type=key, canonical_name=val, matched_text=val, confidence=0.7)]}
                 break
         return None
+
+    def _question_introduces_new_entity(self, question: str, recent: list[dict]) -> bool:
+        question_lower = question.lower()
+        hist_names: set[str] = set()
+        for entry in recent:
+            for key in ("artifact", "artist", "museum", "dynasty"):
+                val = entry.get(key)
+                if val:
+                    hist_names.add(val.lower())
+        for name in hist_names:
+            if name in question_lower:
+                return False
+        for word in _ENTITY_TYPE_HINT_WORDS:
+            if word.lower() in question_lower:
+                return True
+        return False
 
     def _expire_old_entries(self, session_id: str) -> None:
         now = time.time()

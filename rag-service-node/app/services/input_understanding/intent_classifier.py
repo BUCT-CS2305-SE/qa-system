@@ -17,10 +17,10 @@ class IntentClassifier:
             for keyword in rule["keywords"]:
                 if keyword in question:
                     score = max(score, 0.85)
-            required_entity = rule.get("required_entity")
-            if required_entity and required_entity in entities:
-                score += 0.1
             if score > 0:
+                required_entity = rule.get("required_entity")
+                if required_entity and required_entity in entities:
+                    score += 0.1
                 scores.append((rule["intent"], min(score, 0.99), rule.get("template_name")))
         if not scores:
             return "unknown", 0.0, None

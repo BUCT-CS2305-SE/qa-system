@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     graph_backend: str = "remote"
     kg_api_base_url: str = "https://se-cs2305.yazs.top"
     kg_api_timeout_seconds: float = 15.0
+    kg_api_key: str = ""
+    kg_api_key_header: str = "Authorization"
+    kg_api_key_prefix: str = "Bearer "
 
     qa_query_enabled: bool = True
 
