@@ -111,7 +111,7 @@ class KGRetrievalService:
         if not object_id:
             return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
 
-        g = self._get_artifact(object_id)
+        g = self._get_artifact(object_id, artifact_name)
         if g is None:
             return RetrievalResult(status="no_data", fail_reason="文物详情接口调用失败")
 
@@ -190,7 +190,7 @@ class KGRetrievalService:
         if not object_id:
             return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
 
-        g = self._get_artifact(object_id)
+        g = self._get_artifact(object_id, artifact_name)
         if g is None:
             return RetrievalResult(status="no_data", fail_reason="知识图谱未命中文物")
         artifact = str(g.get("title", artifact_name))
@@ -235,7 +235,7 @@ class KGRetrievalService:
             return RetrievalResult(status="no_data", fail_reason="未找到该作者相关信息")
         object_id = str(candidates[0].get("id", ""))
 
-        g = self._get_artifact(object_id)
+        g = self._get_artifact(object_id, artifact_name)
         if g is None:
             return RetrievalResult(status="no_data", fail_reason="文物详情接口调用失败")
 
@@ -395,7 +395,7 @@ class KGRetrievalService:
 
         # ── Multi-hop ──
 
-        g = self._get_artifact(object_id)
+        g = self._get_artifact(object_id, artifact_name)
         if g is None:
             return self._no_data_or_fallback("文物详情接口调用失败")
         artifact = str(g.get("title", artifact_name))
@@ -539,7 +539,7 @@ class KGRetrievalService:
         node_types = [str(n.get("type", n.get("label", ""))) for n in nodes]
         relation_types = list({str(li.get("type", li.get("label", "?"))) for li in links})
 
-        g = self._get_artifact(object_id)
+        g = self._get_artifact(object_id, artifact_name)
         if g is None:
             return self._no_data_or_fallback("文物详情接口调用失败")
         artifact = str(g.get("title", artifact_name))
@@ -607,9 +607,10 @@ class KGRetrievalService:
             return matched
         return records
 
-    def _get_artifact(self, object_id: str) -> dict | None:
+    def _get_artifact(self, object_id: str, artifact_name: str = "") -> dict | None:
+        lang = self._lang_for_text(artifact_name) if artifact_name else "zh"
         try:
-            detail = self._get_json(f"/api/artifacts/{object_id}?lang=zh")
+            detail = self._get_json(f"/api/artifacts/{object_id}?lang={lang}")
         except Exception:
             return None
 
@@ -622,29 +623,39 @@ class KGRetrievalService:
                     "object": rel.get("name", ""),
                 })
 
-        artist = (
-            detail.get("i18n", {}).get("artist_zh") or
-            detail.get("artist") or
-            detail.get("author") or ""
-        )
+        i18n = detail.get("i18n", {})
+        artist = i18n.get("artist_zh") or i18n.get("artist_en") or detail.get("artist") or detail.get("author") or ""
         biography = detail.get("artist_biography") or detail.get("artist_bio") or ""
 
+        title = i18n.get("title_zh") or detail.get("name", "")
+        period = i18n.get("period_zh") or i18n.get("period_en") or detail.get("period", "")
+        atype = i18n.get("type_zh") or i18n.get("type_en") or detail.get("type", "")
+        material = i18n.get("material_zh") or i18n.get("material_en") or detail.get("material", "")
+        description = detail.get("description", "")
+        dimensions = detail.get("dimensions", "")
+
         return {
-            "title": detail.get("i18n", {}).get("title_zh") or detail.get("name", ""),
+            "title": title,
             "name": detail.get("name", ""),
             "museum": detail.get("museum", ""),
             "source_url": detail.get("detail_url", ""),
             "source_name": detail.get("museum", ""),
-            "period": detail.get("period", ""),
-            "type": detail.get("type", ""),
-            "material": detail.get("material", ""),
-            "description": detail.get("description", ""),
-            "dimensions": detail.get("dimensions", ""),
+            "period": period,
+            "type": atype,
+            "material": material,
+            "description": description,
+            "dimensions": dimensions,
             "facts": facts,
             "artist": artist,
             "artist_biography": biography,
             "artist_bio": biography,
         }
+
+    def _lang_for_text(self, text: str) -> str:
+        for ch in text:
+            if '\u4e00' <= ch <= '\u9fff' or '\u3040' <= ch <= '\u30ff':
+                return "zh"
+        return "en"
 
     def _no_data_or_fallback(self, reason: str) -> RetrievalResult:
         """Return no_data regardless of mode. Mock fallback only triggers on network exceptions."""
@@ -664,24 +675,25 @@ class KGRetrievalService:
         return str(selected.get("id")) if selected.get("id") is not None else None
 
     def _search_candidates(self, name: str) -> list[dict]:
+        lang = self._lang_for_text(name)
         payload = self._get_json(
-            f"/api/search?q={urllib.parse.quote(name)}&page=1&page_size=10&lang=zh")
+            f"/api/search?q={urllib.parse.quote(name)}&page=1&page_size=10&lang={lang}")
         candidates = payload.get("data", []) if isinstance(payload, dict) else []
         if candidates:
-            logger.info("KG search for '%s': %d results, first=%s",
-                         name, len(candidates), candidates[0].get("id"))
+            logger.info("KG search for '%s' (%s): %d results, first=%s",
+                         name, lang, len(candidates), candidates[0].get("id"))
             return candidates
-        logger.info("KG search for '%s': 0 results, trying keywords", name)
+        logger.info("KG search for '%s' (%s): 0 results, trying keywords", name, lang)
         words = name.strip().lower().split()
         for word in words:
             if len(word) <= 2:
                 continue
             kw_payload = self._get_json(
-                f"/api/search?q={urllib.parse.quote(word)}&page=1&page_size=10&lang=zh")
+                f"/api/search?q={urllib.parse.quote(word)}&page=1&page_size=10&lang={lang}")
             kw_candidates = kw_payload.get("data", []) if isinstance(kw_payload, dict) else []
             if kw_candidates:
-                logger.info("KG search keyword '%s' for '%s': %d results",
-                             word, name, len(kw_candidates))
+                logger.info("KG search keyword '%s' for '%s' (%s): %d results",
+                             word, name, lang, len(kw_candidates))
                 return kw_candidates
         logger.info("KG search for '%s': no keyword match", name)
         return []
