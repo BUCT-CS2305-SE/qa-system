@@ -3,7 +3,6 @@ from fastapi import APIRouter, Request
 from app.models.api import FeedbackRequest, FeedbackResponse, QAAskRequest, QAAskResponse, QASummaryResponse
 from app.orchestration.qa_pipeline import QAPipeline
 
-
 router = APIRouter(prefix="/qa", tags=["qa"])
 pipeline = QAPipeline()
 

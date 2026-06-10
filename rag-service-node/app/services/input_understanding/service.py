@@ -44,7 +44,9 @@ class InputUnderstandingService:
             confidence=confidence,
         )
 
-    def _align_intent_to_entities(self, normalized: str, intent: str, entities: dict[str, list[EntityMention]], template_name: str | None) -> tuple[str, str | None]:
+    def _align_intent_to_entities(
+        self, normalized: str, intent: str, entities: dict[str, list[EntityMention]], template_name: str | None
+    ) -> tuple[str, str | None]:
         artifact_intents = {
             "artifact_museum",
             "artifact_period",
@@ -75,27 +77,26 @@ class InputUnderstandingService:
                 if alt_intent != "unknown" and alt_intent not in artifact_intents:
                     return alt_intent, alt_template
 
-        if intent in artist_intents and not entities.get("artist"):
-            if entities.get("dynasty"):
-                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
-                if alt_intent != "unknown" and alt_intent not in artist_intents:
-                    return alt_intent, alt_template
+        if intent in artist_intents and not entities.get("artist") and entities.get("dynasty"):
+            alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+            if alt_intent != "unknown" and alt_intent not in artist_intents:
+                return alt_intent, alt_template
 
-        if intent in dynasty_intents and not entities.get("dynasty"):
-            if entities.get("artifact"):
-                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
-                if alt_intent != "unknown" and alt_intent not in dynasty_intents:
-                    return alt_intent, alt_template
+        if intent in dynasty_intents and not entities.get("dynasty") and entities.get("artifact"):
+            alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+            if alt_intent != "unknown" and alt_intent not in dynasty_intents:
+                return alt_intent, alt_template
 
-        if intent == "museum_count" and not entities.get("museum"):
-            if entities.get("dynasty"):
-                alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
-                if alt_intent != "unknown" and alt_intent != "museum_count":
-                    return alt_intent, alt_template
+        if intent == "museum_count" and not entities.get("museum") and entities.get("dynasty"):
+            alt_intent, _, alt_template = self.intent_classifier.classify(normalized, entities)
+            if alt_intent != "unknown" and alt_intent != "museum_count":
+                return alt_intent, alt_template
 
         return intent, template_name
 
-    def _infer_missing_entities(self, normalized: str, intent: str, entities: dict[str, list[EntityMention]]) -> dict[str, list[EntityMention]]:
+    def _infer_missing_entities(
+        self, normalized: str, intent: str, entities: dict[str, list[EntityMention]]
+    ) -> dict[str, list[EntityMention]]:
         artifact_intents = {
             "artifact_museum",
             "artifact_period",
@@ -175,7 +176,16 @@ class InputUnderstandingService:
         "recommended_artifacts": ["related", "recommend", "similar", "like this"],
         "dynasty_representative_artifacts": ["representative", "artifacts of", "artifacts from"],
         "artist_biography": ["biography", "life of", "who is", "tell me about"],
-        "same_artist_works": ["other works", "same artist", "also painted", "also created", "more by", "works by", "同作者", "作品"],
+        "same_artist_works": [
+            "other works",
+            "same artist",
+            "also painted",
+            "also created",
+            "more by",
+            "works by",
+            "同作者",
+            "作品",
+        ],
     }
 
     def _strip_english_keywords(self, text: str, intent: str) -> str:
@@ -183,7 +193,9 @@ class InputUnderstandingService:
             text = re.sub(rf"\s*\b{re.escape(kw)}\b\s*", " ", text, flags=re.IGNORECASE)
         return re.sub(r"\s+", " ", text)
 
-    def _infer_artifact_entity(self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = "") -> dict[str, list[EntityMention]]:
+    def _infer_artifact_entity(
+        self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = ""
+    ) -> dict[str, list[EntityMention]]:
         if entities.get("artifact"):
             return entities
 
@@ -257,7 +269,9 @@ class InputUnderstandingService:
         ]
         return inferred_entities
 
-    def _infer_artist_entity(self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = "") -> dict[str, list[EntityMention]]:
+    def _infer_artist_entity(
+        self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = ""
+    ) -> dict[str, list[EntityMention]]:
         candidate = normalized
         artist_patterns = [
             r"同作者的作品有哪些\??$",
@@ -290,7 +304,9 @@ class InputUnderstandingService:
         ]
         return inferred_entities
 
-    def _infer_museum_entity(self, normalized: str, entities: dict[str, list[EntityMention]]) -> dict[str, list[EntityMention]]:
+    def _infer_museum_entity(
+        self, normalized: str, entities: dict[str, list[EntityMention]]
+    ) -> dict[str, list[EntityMention]]:
         candidate = normalized
         museum_patterns = [
             r"收藏了多少件中国文物\??$",
@@ -322,7 +338,9 @@ class InputUnderstandingService:
 
     _PRONOUN_TOKENS = {"它", "他", "她", "其", "这个", "那个", "这件", "那件", "这些", "那些", "该文物"}
 
-    def _infer_dynasty_entity(self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = "") -> dict[str, list[EntityMention]]:
+    def _infer_dynasty_entity(
+        self, normalized: str, entities: dict[str, list[EntityMention]], intent: str = ""
+    ) -> dict[str, list[EntityMention]]:
         candidate = normalized
         dynasty_patterns = [
             r"的代表性文物有哪些\??$",

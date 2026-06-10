@@ -1,6 +1,7 @@
 """集成测试：通过 HTTP 直接调用运行中的 RAG 服务 (:8000) 和 Spring Boot (:8081)
 不使用 mock，真实测试全链路。
 """
+
 import json
 import os
 import sys
@@ -11,9 +12,9 @@ from urllib.request import Request, urlopen
 
 sys.path.insert(0, os.path.dirname(__file__))  # for same-dir imports
 
-RAG_URL     = "http://127.0.0.1:8000"
+RAG_URL = "http://127.0.0.1:8000"
 GATEWAY_URL = "http://127.0.0.1:8081"
-API_KEY     = "qa-demo-key"
+API_KEY = "qa-demo-key"
 
 # 33 条题集文件
 QUESTIONS_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "samples", "questions.json")
@@ -77,13 +78,13 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(r["status_code"], 401)
 
     def test_auth_wrong_key(self):
-        r = _post_json(f"{GATEWAY_URL}/api/qa/ask", {"question": "test"},
-                       headers={"X-Api-Key": "wrong-key"})
+        r = _post_json(f"{GATEWAY_URL}/api/qa/ask", {"question": "test"}, headers={"X-Api-Key": "wrong-key"})
         self.assertEqual(r["status_code"], 401)
 
     def test_auth_correct_key(self):
-        r = _post_json(f"{GATEWAY_URL}/api/qa/ask", {"question": "女史箴图在哪个博物馆？"},
-                       headers={"X-Api-Key": API_KEY})
+        r = _post_json(
+            f"{GATEWAY_URL}/api/qa/ask", {"question": "女史箴图在哪个博物馆？"}, headers={"X-Api-Key": API_KEY}
+        )
         self.assertEqual(r["status_code"], 200)
         self.assertIsInstance(r["body"], dict)
         self.assertIn("answer", r["body"])
@@ -99,9 +100,7 @@ class IntegrationTests(unittest.TestCase):
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         def _send():
-            req = Request(f"{GATEWAY_URL}/api/qa/ask",
-                          data=json.dumps({"question": "test"}).encode(),
-                          method="POST")
+            req = Request(f"{GATEWAY_URL}/api/qa/ask", data=json.dumps({"question": "test"}).encode(), method="POST")
             req.add_header("Content-Type", "application/json")
             req.add_header("X-Api-Key", API_KEY)
             try:
@@ -134,11 +133,11 @@ class IntegrationTests(unittest.TestCase):
     def _assert_ok(self, r: dict, expected_intent: str = None, msg: str = ""):
         self.assertEqual(r["status_code"], 200, msg)
         body = r["body"]
-        self.assertIn(body.get("status"), ("ok", "no_data", "clarify"),
-                      f"{msg} -> status={body.get('status')}")
+        self.assertIn(body.get("status"), ("ok", "no_data", "clarify"), f"{msg} -> status={body.get('status')}")
         if expected_intent:
-            self.assertEqual(body.get("intent"), expected_intent,
-                             f"{msg} -> intent={body.get('intent')}, expected={expected_intent}")
+            self.assertEqual(
+                body.get("intent"), expected_intent, f"{msg} -> intent={body.get('intent')}, expected={expected_intent}"
+            )
 
     def test_q01_museum(self):
         self._assert_ok(self._ask_rag("女史箴图在哪个博物馆？"), "artifact_museum", "Q01")
@@ -200,23 +199,32 @@ class IntegrationTests(unittest.TestCase):
         r = self._ask_rag("abcdefg在哪个博物馆？")
         self.assertEqual(r["status_code"], 200)
         body = r["body"]
-        self.assertIn(body.get("status"), ("no_data", "clarify"),
-                      f"Unknown artifact should be no_data/clarify, got {body.get('status')}: {body.get('answer', '')[:100]}")
+        self.assertIn(
+            body.get("status"),
+            ("no_data", "clarify"),
+            f"Unknown artifact should be no_data/clarify, got {body.get('status')}: {body.get('answer', '')[:100]}",
+        )
 
     def test_no_data_nonexistent_museum(self):
         r = self._ask_rag("ZZZZZZ博物馆收藏了多少件？")
         self.assertEqual(r["status_code"], 200)
         body = r["body"]
-        self.assertIn(body.get("status"), ("no_data", "clarify"),
-                      f"Unknown museum should be no_data/clarify, got {body.get('status')}")
+        self.assertIn(
+            body.get("status"),
+            ("no_data", "clarify"),
+            f"Unknown museum should be no_data/clarify, got {body.get('status')}",
+        )
 
     def test_no_data_empty_answer_not_fabricated(self):
         r = self._ask_rag("不存在的文物123的介绍")
         self.assertEqual(r["status_code"], 200)
         body = r["body"]
         # 不应返回 ok 状态（不能编造数据）
-        self.assertNotEqual(body.get("status"), "ok",
-                            f"Should not return ok for nonexistent artifact, got answer: {body.get('answer', '')[:150]}")
+        self.assertNotEqual(
+            body.get("status"),
+            "ok",
+            f"Should not return ok for nonexistent artifact, got answer: {body.get('answer', '')[:150]}",
+        )
 
     # ── 7. 多轮对话 ──
 
@@ -266,16 +274,18 @@ class IntegrationTests(unittest.TestCase):
         self.assertIsNotNone(trace_id, "Response should have trace_id")
 
         # 提交反馈
-        fb = _post_json(f"{RAG_URL}/api/qa/feedback", {
-            "trace_id": trace_id, "helpful": True, "comment": "integration test"
-        })
+        fb = _post_json(
+            f"{RAG_URL}/api/qa/feedback", {"trace_id": trace_id, "helpful": True, "comment": "integration test"}
+        )
         self.assertEqual(fb["status_code"], 200)
         self.assertEqual(fb["body"]["status"], "ok")
 
         # 也通过网关提交
-        fb2 = _post_json(f"{GATEWAY_URL}/api/qa/feedback", {
-            "trace_id": trace_id, "helpful": False, "comment": "gateway test"
-        }, headers={"X-Api-Key": API_KEY})
+        fb2 = _post_json(
+            f"{GATEWAY_URL}/api/qa/feedback",
+            {"trace_id": trace_id, "helpful": False, "comment": "gateway test"},
+            headers={"X-Api-Key": API_KEY},
+        )
         self.assertEqual(fb2["status_code"], 200)
 
     # ── 10. 汇总接口 ──

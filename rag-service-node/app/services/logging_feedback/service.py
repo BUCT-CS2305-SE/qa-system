@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Dict, List
 
-from app.models.domain import FeedbackRecord, QASummary, QueryLogRecord, QueryPlan, RetrievalResult, SummaryFailureItem, UnderstandingResult
+from app.models.domain import (
+    FeedbackRecord,
+    QASummary,
+    QueryLogRecord,
+    QueryPlan,
+    RetrievalResult,
+    SummaryFailureItem,
+    UnderstandingResult,
+)
 
 
 class LoggingFeedbackService:
     def __init__(self) -> None:
-        self.logs: List[QueryLogRecord] = []
-        self.feedbacks: List[FeedbackRecord] = []
+        self.logs: list[QueryLogRecord] = []
+        self.feedbacks: list[FeedbackRecord] = []
 
     def record_query(
         self,

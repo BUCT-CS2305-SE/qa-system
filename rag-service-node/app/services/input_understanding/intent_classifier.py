@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 
 class IntentClassifier:
@@ -10,8 +9,8 @@ class IntentClassifier:
         rule_path = Path(__file__).resolve().parents[2] / "config" / "intent_rules.json"
         self.rules = json.loads(rule_path.read_text(encoding="utf-8"))
 
-    def classify(self, question: str, entities: Dict[str, List[object]]) -> Tuple[str, float, str | None]:
-        scores: List[Tuple[str, float, str | None]] = []
+    def classify(self, question: str, entities: dict[str, list[object]]) -> tuple[str, float, str | None]:
+        scores: list[tuple[str, float, str | None]] = []
         for rule in self.rules:
             score = 0.0
             for keyword in rule["keywords"]:

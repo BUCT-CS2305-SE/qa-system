@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import json
 import urllib.request
-from typing import Any, Dict, List
+from typing import Any
 
 from app.core.config import settings
 
 
 class LlmService:
-    def generate(self, question: str, facts: List[Dict[str, Any]], sources: List[Dict[str, str]]) -> str:
+    def generate(self, question: str, facts: list[dict[str, Any]], sources: list[dict[str, str]]) -> str:
         if not settings.llm_available:
             raise RuntimeError("LLM 未配置")
 
         prompt = self._build_qa_prompt(question, facts, sources)
         return self._call_llm(prompt)
 
-    def chat(self, question: str, history: List[Dict[str, str]] | None = None) -> str:
+    def chat(self, question: str, history: list[dict[str, str]] | None = None) -> str:
         if not settings.llm_available:
             raise RuntimeError("LLM 未配置")
 
@@ -36,7 +36,9 @@ class LlmService:
         }
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = urllib.request.Request(
-            settings.llm_api_url, data=data, method="POST",
+            settings.llm_api_url,
+            data=data,
+            method="POST",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {settings.llm_api_key}",
@@ -48,7 +50,7 @@ class LlmService:
 
     # ── QA prompt (structured facts → polished answer) ─────────
 
-    def _build_qa_prompt(self, question: str, facts: List[Dict[str, Any]], sources: List[Dict[str, str]]) -> str:
+    def _build_qa_prompt(self, question: str, facts: list[dict[str, Any]], sources: list[dict[str, str]]) -> str:
         parts = [f"用户问题：{question}\n"]
         if facts:
             parts.append("知识图谱事实数据：")
@@ -83,7 +85,9 @@ class LlmService:
         }
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = urllib.request.Request(
-            settings.llm_api_url, data=data, method="POST",
+            settings.llm_api_url,
+            data=data,
+            method="POST",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {settings.llm_api_key}",
@@ -121,7 +125,7 @@ class LlmService:
 
     # ── Utility ────────────────────────────────────────────────
 
-    def _extract_answer(self, body: Dict[str, Any]) -> str:
+    def _extract_answer(self, body: dict[str, Any]) -> str:
         choices = body.get("choices", [])
         if choices:
             message = choices[0].get("message", {})

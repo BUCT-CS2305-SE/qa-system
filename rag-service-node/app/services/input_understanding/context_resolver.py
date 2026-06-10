@@ -3,13 +3,13 @@ from __future__ import annotations
 import re
 import time
 from collections import defaultdict
-from typing import Dict, List, Tuple
 
 from app.core.config import settings
 from app.models.domain import EntityMention
 
 _PRONOUN_PATTERNS = [
-    re.compile(p) for p in [
+    re.compile(p)
+    for p in [
         r"^(它|他|她|其)(的|属于|是|在|有|的)?",
         r"^(这个|那个|这件|那件|这些|那些)(的|属于|是|在|有|的)?",
         r"^(该文物|这件文物|那件文物|这个文物|那个文物)",
@@ -18,7 +18,8 @@ _PRONOUN_PATTERNS = [
 ]
 
 _TOPIC_SWITCH_SIGNALS = [
-    re.compile(p) for p in [
+    re.compile(p)
+    for p in [
         r"(换一个|换个话题|不说这个|另一个|别的|其他)",
         r"^(那|那好|对了|哦还有|另外).*(问|说|讲|介绍|查|看)",
     ]
@@ -28,7 +29,6 @@ _ENTITY_TYPE_HINT_WORDS = ["博物馆", "博物院", "museum", "Museum", "朝代
 
 
 class ContextResolver:
-
     _SESSION_TTL_SECONDS = 30 * 60
 
     def __init__(self) -> None:
@@ -37,10 +37,10 @@ class ContextResolver:
     def resolve(
         self,
         current_question: str,
-        entities: Dict[str, List[EntityMention]],
+        entities: dict[str, list[EntityMention]],
         intent: str,
         session_id: str | None,
-    ) -> Tuple[Dict[str, List[EntityMention]], bool]:
+    ) -> tuple[dict[str, list[EntityMention]], bool]:
         """Resolve context references. Returns (entities, topic_switched)."""
         if not session_id:
             return entities, False
@@ -120,7 +120,9 @@ class ContextResolver:
         if last_user:
             last_intent = last_user.get("intent", "")
             if last_intent and intent and last_intent != intent:
-                last_entities = {k: v for k, v in last_user.items() if k in ("artifact", "artist", "museum", "dynasty") and v}
+                last_entities = {
+                    k: v for k, v in last_user.items() if k in ("artifact", "artist", "museum", "dynasty") and v
+                }
                 current_entities = any(
                     entry.get(k) and entry.get(k, "") in (last_entities.get(k) or "")
                     for entry in recent[-2:]
@@ -136,18 +138,17 @@ class ContextResolver:
         for pattern in _PRONOUN_PATTERNS:
             if pattern.search(text):
                 return True
-        return (
-            len(text) <= 6
-            and any(w in text for w in ("它", "他", "她", "这个", "那个", "这件", "那些", "这些"))
-        )
+        return len(text) <= 6 and any(w in text for w in ("它", "他", "她", "这个", "那个", "这件", "那些", "这些"))
 
-    def _inherit_entity_from_history(self, recent: list[dict]) -> Dict[str, List[EntityMention]] | None:
+    def _inherit_entity_from_history(self, recent: list[dict]) -> dict[str, list[EntityMention]] | None:
         for entry in reversed(recent):
             if entry.get("role") == "assistant":
                 for key in ("artifact", "artist", "museum", "dynasty"):
                     val = entry.get(key)
                     if val:
-                        return {key: [EntityMention(entity_type=key, canonical_name=val, matched_text=val, confidence=0.7)]}
+                        return {
+                            key: [EntityMention(entity_type=key, canonical_name=val, matched_text=val, confidence=0.7)]
+                        }
                 break
         return None
 
@@ -162,10 +163,7 @@ class ContextResolver:
         for name in hist_names:
             if name in question_lower:
                 return False
-        for word in _ENTITY_TYPE_HINT_WORDS:
-            if word.lower() in question_lower:
-                return True
-        return False
+        return any(word.lower() in question_lower for word in _ENTITY_TYPE_HINT_WORDS)
 
     def _expire_old_entries(self, session_id: str) -> None:
         now = time.time()
