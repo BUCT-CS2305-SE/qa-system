@@ -14,12 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 class KGRetrievalService:
-
     # ── Public entry ────────────────────────────────────────────
 
     _current_kg_token: str | None = None
 
-    def retrieve(self, template_name: str | None, query_text: str | None, parameters: dict[str, object]) -> RetrievalResult:
+    def retrieve(
+        self, template_name: str | None, query_text: str | None, parameters: dict[str, object]
+    ) -> RetrievalResult:
         if not template_name or not query_text:
             return RetrievalResult(status="no_data", fail_reason="未生成查询语句")
 
@@ -87,21 +88,21 @@ class KGRetrievalService:
     # Use /api/qa/grounding/{id} for full fact package in one call.
 
     _FIELD_MAP = {
-        "artifact_museum_query":      ("museum",       "museum"),
-        "artifact_period_query":      ("period",       "dynasty"),
-        "artifact_material_query":    ("material",     "material"),
-        "artifact_type_query":        ("type",         "type"),
-        "artifact_description_query": ("description",  "description"),
-        "artifact_dimensions_query":  ("dimensions",   "dimensions"),
-        "painting_author_query":      (None,           "artist"),
+        "artifact_museum_query": ("museum", "museum"),
+        "artifact_period_query": ("period", "dynasty"),
+        "artifact_material_query": ("material", "material"),
+        "artifact_type_query": ("type", "type"),
+        "artifact_description_query": ("description", "description"),
+        "artifact_dimensions_query": ("dimensions", "dimensions"),
+        "painting_author_query": (None, "artist"),
     }
 
     _FACT_PREDICATE_FALLBACK = {
-        "material":  "MADE_OF",
-        "type":      "HAS_TYPE",
-        "artist":    "CREATED_BY",
-        "period":    "BELONGS_TO_PERIOD",
-        "museum":    "COLLECTED_BY",
+        "material": "MADE_OF",
+        "type": "HAS_TYPE",
+        "artist": "CREATED_BY",
+        "period": "BELONGS_TO_PERIOD",
+        "museum": "COLLECTED_BY",
     }
 
     def _resolve_and_query_artifact(self, template_name: str, parameters: dict[str, object]) -> RetrievalResult | None:
@@ -158,14 +159,20 @@ class KGRetrievalService:
                 "source_url": source_url,
             }
             facts = [
-                RetrievedFact(subject=artifact, predicate="description", object="",
-                              source_name=source_name, source_url=source_url),
+                RetrievedFact(
+                    subject=artifact, predicate="description", object="", source_name=source_name, source_url=source_url
+                ),
             ]
             return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
         if value in (None, ""):
-            logger.info("KG artifact: field '%s' empty for artifact %s (id=%s), backend=%s",
-                         grounding_field or display_key, artifact_name, object_id, settings.graph_backend)
+            logger.info(
+                "KG artifact: field '%s' empty for artifact %s (id=%s), backend=%s",
+                grounding_field or display_key,
+                artifact_name,
+                object_id,
+                settings.graph_backend,
+            )
             return RetrievalResult(status="no_data", fail_reason="知识图谱属性为空")
 
         raw_record = {
@@ -176,8 +183,13 @@ class KGRetrievalService:
             "source_url": source_url,
         }
         facts = [
-            RetrievedFact(subject=artifact, predicate=display_key, object=str(value),
-                          source_name=source_name, source_url=source_url),
+            RetrievedFact(
+                subject=artifact,
+                predicate=display_key,
+                object=str(value),
+                source_name=source_name,
+                source_url=source_url,
+            ),
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
@@ -220,7 +232,7 @@ class KGRetrievalService:
                 source_name=str(item.get("museum", museum_name or "")),
                 source_url=str(item.get("detail_url", source_url or "")),
             )
-            for name, item in zip(recommendation_names, related_items)
+            for name, item in zip(recommendation_names, related_items, strict=False)
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
@@ -237,11 +249,10 @@ class KGRetrievalService:
             return RetrievalResult(status="no_data", fail_reason="未找到该作者相关信息")
         object_id = str(candidates[0].get("id", ""))
 
-        g = self._get_artifact(object_id, artifact_name)
+        g = self._get_artifact(object_id, artist_name)
         if g is None:
             return RetrievalResult(status="no_data", fail_reason="文物详情接口调用失败")
 
-        artist_field = g.get("artist") or ""
         biography = g.get("artist_biography") or ""
 
         raw_record = {
@@ -272,7 +283,8 @@ class KGRetrievalService:
             payload = json.dumps({"intent": "artifacts_of_period", "params": {"period": dynasty_name}}).encode()
             req = urllib.request.Request(
                 f"{settings.kg_api_base_url}/api/qa/query",
-                data=payload, method="POST",
+                data=payload,
+                method="POST",
                 headers={"Content-Type": "application/json"},
             )
             self._add_auth_header(req)
@@ -282,7 +294,9 @@ class KGRetrievalService:
             artifact_names = [str(item.get("name", "")) for item in items if item.get("name")]
         else:
             # Fallback: use search to find artifacts by period
-            search_payload = self._get_json(f"/api/search?q={urllib.parse.quote(dynasty_name)}&page=1&page_size=10&lang=zh")
+            search_payload = self._get_json(
+                f"/api/search?q={urllib.parse.quote(dynasty_name)}&page=1&page_size=10&lang=zh"
+            )
             items = search_payload.get("data", []) if isinstance(search_payload, dict) else []
             artifact_names = [str(item.get("name", "")) for item in items if item.get("name")]
 
@@ -313,8 +327,11 @@ class KGRetrievalService:
         museum_name = str(parameters.get("museum_name", "")).strip()
         top_museums = stats.get("top_museums", []) if isinstance(stats, dict) else []
         matched = next(
-            (item for item in top_museums
-             if self._normalize_text(str(item.get("name", ""))) == self._normalize_text(museum_name)),
+            (
+                item
+                for item in top_museums
+                if self._normalize_text(str(item.get("name", ""))) == self._normalize_text(museum_name)
+            ),
             None,
         )
         if not matched:
@@ -346,8 +363,7 @@ class KGRetrievalService:
         if not artist_name:
             return RetrievalResult(status="no_data", fail_reason="缺少作者名称")
 
-        search_payload = self._get_json(
-            f"/api/search?q={urllib.parse.quote(artist_name)}&page=1&page_size=10&lang=zh")
+        search_payload = self._get_json(f"/api/search?q={urllib.parse.quote(artist_name)}&page=1&page_size=10&lang=zh")
         items = search_payload.get("data", []) if isinstance(search_payload, dict) else []
         work_names = [str(item.get("name", "")) for item in items if item.get("name")]
 
@@ -413,15 +429,22 @@ class KGRetrievalService:
             "source_url": source_url,
         }
         facts = [
-            RetrievedFact(subject=artifact, predicate="graph_path", object=" → ".join(node_names),
-                          source_name=source_name, source_url=source_url),
+            RetrievedFact(
+                subject=artifact,
+                predicate="graph_path",
+                object=" → ".join(node_names),
+                source_name=source_name,
+                source_url=source_url,
+            ),
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
     # ── Artifact comparison (via POST /api/artifacts/compare) ──
 
     def _query_compare_artifacts(self, parameters: dict[str, object]) -> RetrievalResult | None:
-        names = parameters.get("artifact_names") or ([parameters.get("artifact_name")] if parameters.get("artifact_name") else [])
+        names = parameters.get("artifact_names") or (
+            [parameters.get("artifact_name")] if parameters.get("artifact_name") else []
+        )
         if not names or len(names) < 2:
             # Only one artifact found? Try inferring second from the question pattern
             artifact_name = str(parameters.get("artifact_name", "")).strip()
@@ -441,7 +464,8 @@ class KGRetrievalService:
         payload = json.dumps({"ids": ids}).encode()
         req = urllib.request.Request(
             f"{settings.kg_api_base_url}/api/artifacts/compare?lang=zh",
-            data=payload, method="POST",
+            data=payload,
+            method="POST",
             headers={"Content-Type": "application/json"},
         )
         self._add_auth_header(req)
@@ -513,8 +537,13 @@ class KGRetrievalService:
             "source_url": f"{settings.kg_api_base_url}/docs",
         }
         facts = [
-            RetrievedFact(subject=display_dynasty, predicate="total_artifacts", object=str(total),
-                          source_name=raw_record["source_name"], source_url=raw_record["source_url"]),
+            RetrievedFact(
+                subject=display_dynasty,
+                predicate="total_artifacts",
+                object=str(total),
+                source_name=raw_record["source_name"],
+                source_url=raw_record["source_url"],
+            ),
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
@@ -558,8 +587,13 @@ class KGRetrievalService:
             "source_url": source_url,
         }
         facts = [
-            RetrievedFact(subject=artifact, predicate="provenance_path", object=" → ".join(node_names),
-                          source_name=source_name, source_url=source_url),
+            RetrievedFact(
+                subject=artifact,
+                predicate="provenance_path",
+                object=" → ".join(node_names),
+                source_name=source_name,
+                source_url=source_url,
+            ),
         ]
         return RetrievalResult(status="ok", facts=facts, raw_records=[raw_record])
 
@@ -574,16 +608,23 @@ class KGRetrievalService:
         for record in records:
             for key, value in record.items():
                 if key not in {"source_name", "source_url"}:
-                    facts.append(RetrievedFact(
-                        subject=record.get("artifact") or record.get("artist") or record.get("museum") or record.get("dynasty") or "result",
-                        predicate=key,
-                        object=str(value),
-                        source_name=record.get("source_name"),
-                        source_url=record.get("source_url"),
-                    ))
+                    facts.append(
+                        RetrievedFact(
+                            subject=record.get("artifact")
+                            or record.get("artist")
+                            or record.get("museum")
+                            or record.get("dynasty")
+                            or "result",
+                            predicate=key,
+                            object=str(value),
+                            source_name=record.get("source_name"),
+                            source_url=record.get("source_url"),
+                        )
+                    )
         status = "ok" if records else "no_data"
-        return RetrievalResult(status=status, facts=facts, raw_records=records,
-                               fail_reason=None if records else "暂无相关数据")
+        return RetrievalResult(
+            status=status, facts=facts, raw_records=records, fail_reason=None if records else "暂无相关数据"
+        )
 
     def _filter_mock_records(self, records: list[dict], parameters: dict[str, object]) -> list[dict]:
         filter_key = None
@@ -620,10 +661,12 @@ class KGRetrievalService:
         related = detail.get("related_entities", [])
         if isinstance(related, list):
             for rel in related:
-                facts.append({
-                    "predicate": rel.get("relation", ""),
-                    "object": rel.get("name", ""),
-                })
+                facts.append(
+                    {
+                        "predicate": rel.get("relation", ""),
+                        "object": rel.get("name", ""),
+                    }
+                )
 
         i18n = detail.get("i18n", {})
         artist = i18n.get("artist_zh") or i18n.get("artist_en") or detail.get("artist") or detail.get("author") or ""
@@ -655,7 +698,7 @@ class KGRetrievalService:
 
     def _lang_for_text(self, text: str) -> str:
         for ch in text:
-            if '\u4e00' <= ch <= '\u9fff' or '\u3040' <= ch <= '\u30ff':
+            if "\u4e00" <= ch <= "\u9fff" or "\u3040" <= ch <= "\u30ff":
                 return "zh"
         return "en"
 
@@ -669,8 +712,7 @@ class KGRetrievalService:
             return None
         normalized_target = self._normalize_text(artifact_name)
         exact_match = next(
-            (item for item in candidates
-             if self._normalize_text(str(item.get("name", ""))) == normalized_target),
+            (item for item in candidates if self._normalize_text(str(item.get("name", ""))) == normalized_target),
             None,
         )
         selected = exact_match or candidates[0]
@@ -678,24 +720,22 @@ class KGRetrievalService:
 
     def _search_candidates(self, name: str) -> list[dict]:
         lang = self._lang_for_text(name)
-        payload = self._get_json(
-            f"/api/search?q={urllib.parse.quote(name)}&page=1&page_size=10&lang={lang}")
+        payload = self._get_json(f"/api/search?q={urllib.parse.quote(name)}&page=1&page_size=10&lang={lang}")
         candidates = payload.get("data", []) if isinstance(payload, dict) else []
         if candidates:
-            logger.info("KG search for '%s' (%s): %d results, first=%s",
-                         name, lang, len(candidates), candidates[0].get("id"))
+            logger.info(
+                "KG search for '%s' (%s): %d results, first=%s", name, lang, len(candidates), candidates[0].get("id")
+            )
             return candidates
         logger.info("KG search for '%s' (%s): 0 results, trying keywords", name, lang)
         words = name.strip().lower().split()
         for word in words:
             if len(word) <= 2:
                 continue
-            kw_payload = self._get_json(
-                f"/api/search?q={urllib.parse.quote(word)}&page=1&page_size=10&lang={lang}")
+            kw_payload = self._get_json(f"/api/search?q={urllib.parse.quote(word)}&page=1&page_size=10&lang={lang}")
             kw_candidates = kw_payload.get("data", []) if isinstance(kw_payload, dict) else []
             if kw_candidates:
-                logger.info("KG search keyword '%s' for '%s' (%s): %d results",
-                             word, name, lang, len(kw_candidates))
+                logger.info("KG search keyword '%s' for '%s' (%s): %d results", word, name, lang, len(kw_candidates))
                 return kw_candidates
         logger.info("KG search for '%s': no keyword match", name)
         return []

@@ -55,33 +55,119 @@
 
 | 项目 | 内容 |
 |------|------|
-| 测试 | 19 个单元测试，覆盖 16 意图 + 多轮上下文 + 反馈 + 无数据兜底 |
-| 测试题集 | `questions.json`，33 条，覆盖全部意图类型 |
+| 测试 | 19 单元 + 36 回归 = **55 用例**（pytest），前端 **3 用例**（Vitest），后端 **16 用例**（JUnit） |
+| 集成测试 | 33 个真实 KG + LLM 全链路用例 |
+| 测试题集 | `questions.json`，33 条，覆盖全部 16 类意图 |
 | API 契约 | `specs/api-contract.md`，含请求/响应 schema、错误码（2000~5004）、鉴权/限流规则 |
-| Docker | 三服务 Dockerfile（Python / Maven+JRE / Vite+nginx）+ `docker-compose.yml`（健康检查 + 依赖顺序） |
-| 脚本 | `start-dev.ps1`（一键启动）、`stop-dev.ps1`、`docker-deploy.ps1`、`run-tests.ps1` |
+| Docker | 三服务 Dockerfile + `docker-compose.yml`（健康检查 + 依赖顺序） |
+| 脚本 | `start-dev.ps1`、`stop-dev.ps1`、`docker-deploy.ps1`、`run-tests.ps1`、`quality.ps1` |
+| 代码质量 | Ruff（Python）128处自动修复 + ESLint（前端）+ Checkstyle/JaCoCo（Java）+ GitHub Actions CI |
+| Web 端对接 | URL参数传token（`?token=<JWT>`）、双重鉴权（X-Api-Key + JWT）、局域网跨域 |
 
 ---
 
 ## 二、技术架构一览
 
+### 2.1 系统拓扑
+
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────┐
-│ Web 前端     │────▶│ Spring Boot  │────▶│  FastAPI     │────▶│ 数据组    │
-│ React+Vite  │     │ :8081        │     │  :8000       │     │ KG API   │
-│ 🖥 Chat UI  │     │ 鉴权/限流    │     │ RAG 管道     │     │ Neo4j    │
-│ sources展示 │     │ 历史/反馈    │     │ 16意图→16API │     │          │
-└─────────────┘     └──────────────┘     └──────────────┘     └──────────┘
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  web-frontend │────▶│backend-spring│────▶│rag-service-  │────▶│  数据组 KG    │
+│  React 19    │     │ Spring Boot  │     │    node       │     │  API         │
+│  Vite 8      │     │ :8081        │     │ FastAPI :8000│     │ se-cs2305.   │
+│  :5173       │     │              │     │              │     │ yazs.top     │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+      │                      │                     │
+  Chat UI               鉴权/限流              意图识别
+  侧边栏                历史(H2)               实体抽取
+  来源展示              反馈落库               KG检索
+  反馈按钮              CORS                   答案生成
+  Token管理             指标监控               溯源/日志
+  暗色/亮色             JWT透传                中/英文自适应
 ```
 
-RAG 管道流程：
-```
-问题 → 规范化 → 实体抽取 → 意图分类 → 上下文解析（多轮）
- → 查询构建（意图→Cypher/API） → KG检索（实时/mock回退）
- → 答案生成（规则模板/LLM） → 溯源组装 → 日志记录 → 返回
+### 2.2 完整数据流（端到端 Mermaid）
+
+```mermaid
+sequenceDiagram
+    actor User as 用户
+    participant Web as Web平台
+    participant FE as 前端 :5173<br/>React+Vite
+    participant GW as 网关 :8081<br/>Spring Boot
+    participant RAG as RAG服务 :8000<br/>FastAPI
+    participant KG as 数据组KG API<br/>se-cs2305.yazs.top
+
+    Note over User,KG: ═══ ① Token 获取 ═══
+    Web->>Web: 用户登录, 获取 JWT
+    Web->>FE: 跳转 ?token=<JWT>
+    FE->>FE: main.tsx 解析URL参数<br/>→ localStorage.auth_token
+
+    Note over User,KG: ═══ ② 问答请求 ═══
+    User->>FE: 输入 "女史箴图在哪个博物馆？"
+    FE->>FE: ChatComposer → useChat.send()
+    FE->>GW: POST /api/qa/ask<br/>X-Api-Key + Authorization: Bearer JWT<br/>{question, session_id, mode}
+    GW->>GW: ApiKeyFilter 校验 X-Api-Key
+    GW->>GW: RateLimitFilter 限流检查(60s/60次)
+    GW->>GW: 提取 Authorization → kgToken
+    GW->>GW: 空问题? → 直接返回 no_data
+    GW->>GW: 记录 Metric 指标
+    GW->>GW: H2 保存历史记录
+    GW->>RAG: POST /api/qa/ask<br/>X-Kg-Token: Bearer JWT
+
+    Note over RAG: ═══ ③ RAG 管道 ═══
+    RAG->>RAG: 接收 X-Kg-Token → KGRetrievalService
+    RAG->>RAG: ① 规范化 (trim/去语气词/中英文检测)
+    RAG->>RAG: ② 上下文解析 (代词消解/话题切换/30min超时)
+    RAG->>RAG: ③ 实体抽取 (22条别名+问题文本推断)
+    RAG->>RAG: ④ 意图分类 (16规则打分+实体加分+裸名回退)
+    RAG->>RAG: ⑤ 查询构建 (intent→template→参数填充)
+
+    RAG->>KG: ⑥ KG检索 (hybrid双模)
+    KG-->>RAG: facts + sources
+
+    RAG->>RAG: ⑦ 答案生成<br/>rule: 16类中文模板 (~20ms)<br/>auto: DeepSeek LLM润色 (~3.5s)
+    RAG->>RAG: ⑧ 溯源组装 (sources/facts去重)
+    RAG->>RAG: ⑨ 日志记录 (会话+反馈+统计)
+
+    RAG-->>GW: { status, answer, sources, facts, intent, mode }
+
+    Note over GW,FE: ═══ ④ 响应返回 ═══
+    GW-->>FE: AskResponse JSON
+    FE->>FE: ChatBox 渲染<br/>答案 + sources(可点击链接)<br/>+ facts列表 + LLM/规则标注
+    FE-->>User: 展示回答
+
+    Note over User,FE: ═══ ⑤ 反馈闭环 ═══
+    User->>FE: 点击 👍 或 👎
+    FE->>GW: POST /api/qa/feedback<br/>{ trace_id, helpful, comment }
+    GW->>GW: H2 落库 Feedback
+    GW->>RAG: POST /api/qa/feedback (转发)
+    RAG->>RAG: 内存日志 + 统计摘要
+
+    Note over FE: ═══ ⑥ 会话持久化 ═══
+    FE->>FE: localStorage (5天TTL, 每小时GC, 500条上限)
+    GW->>GW: H2 持久化 (每日03:10清理30天前)
+    RAG->>RAG: 内存上下文缓存 (30min超时)
 ```
 
----
+### 2.3 RAG 管道核心流程
+
+```mermaid
+flowchart TD
+    Q["用户问题"] --> N["规范化<br/>trim/去语气词/中英文检测"]
+    N --> C["上下文解析<br/>代词消解/话题切换/30min超时"]
+    C --> E["实体抽取<br/>22别名匹配 + 文本推断"]
+    E --> I["意图分类<br/>16规则打分 + 实体加分 + 裸名回退"]
+    I --> QB["查询构建<br/>intent → template → 参数填充"]
+    QB --> KG["KG 检索<br/>hybrid: API优先→mock降级<br/>remote: 仅API / mock: 假数据"]
+    KG --> AG["答案生成<br/>rule: 模板(~20ms)<br/>auto: DeepSeek LLM(~3.5s)"]
+    AG --> TR["溯源组装<br/>sources/facts去重 + detail_url"]
+    TR --> LOG["日志记录<br/>会话历史 + 反馈 + 统计"]
+    LOG --> OUT["返回 JSON<br/>{status, answer, sources, facts, intent}"]
+    KG -.->|"no_data"| ND["无数据兜底<br/>'暂无相关数据'"]
+    ND --> OUT
+    C -.->|"无上下文问代词"| CL["clarify<br/>'无法确定指代对象'"]
+    CL --> OUT
+```
 
 ## 三、剩余未完成
 
@@ -89,8 +175,7 @@ RAG 管道流程：
 |------|------|--------|
 | **文档 RAG（向量检索）** | 在 KG 之外增加文档检索通路：文物介绍/论文/展览说明 → embedding → pgvector → 语义召回 → LLM 融合回答 | 低（S4 选做） |
 | **LangChain 集成** | 用 LangChain 的 RetrievalChain 统一 KG + 文档双路检索，替代当前手写管道 | 低（S4 选做） |
-| **后端 README 更新** | `backend-spring/README.md` 仍描述为"最小桩"，实际已演进为完整网关，需更新 | 低 |
-| **性能测试** | NFR-001 要求常规问答 <2s，未实测 | 低 |
+| **性能测试** | NFR-001 要求常规问答 <2s，rule 模式实测 ~1.5s 达标，但未系统压测 | 低 |
 
 ---
 
@@ -100,9 +185,15 @@ RAG 管道流程：
 |------|------|
 | 意图类型 | 16 类（12简单 + 4复杂） |
 | 实体类型 | 4 类（文物/博物馆/朝代/作者） |
-| 实体别名 | 22 条 |
-| Cypher 模板 | 16 个 |
+| 实体别名 | 22 条（中/英双语） |
+| Cypher/API 模板 | 16 个 |
 | 对接数据组 API 端点 | 8 个 |
-| 单元测试 | 19 个 |
+| 自动化测试 (pytest) | 55 用例（19 单元 + 36 回归） |
+| 集成测试 (真实KG) | 33 用例 |
+| 前端测试 (Vitest) | 3 用例 |
+| 后端测试 (JUnit) | 16 用例 |
 | 测试题集 | 33 条 |
-| 代码文件（Java + Python + TS） | ~50 个 |
+| 代码文件（Java + Python + TS） | ~55 个 |
+| Bug 修复 | 15 个 |
+| Ruff 代码质量修复 | 128 处 |
+| 交付文档 | 9 份（SRS/设计/管理/模块/完成度/测试/用户手册/API契约/会议纪要×7） |

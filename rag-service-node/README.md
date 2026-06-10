@@ -1,93 +1,130 @@
-# rag-service-node
+# rag-service-node — RAG 问答核心服务
 
-本目录原本是总仓中的 RAG 微服务占位目录，现已先集成一套可运行的 Python/FastAPI 问答服务原型，作为组内开发和联调基线。
+基于 Python 3.13 + FastAPI 的检索增强生成（RAG）问答引擎，负责从输入理解到答案生成的全链路处理，对接数据组知识图谱 API。
 
-## 当前定位
+---
 
-- 目录名保留为 `rag-service-node`，以对齐总仓既有结构
-- 当前实现不是 Node.js 成品，而是迁入的 Python 原型框架
-- 目标是先跑通问答链路，再逐步迁移或重构为 Node.js + TypeScript 版本
+## 启动
 
-## 当前已集成内容
+```powershell
+# 安装依赖
+python -m pip install -r requirements.txt
 
-- FastAPI 服务入口
-- 输入理解模块：标准化、实体抽取、意图识别、上下文消歧占位
-- 查询构建模块：查询模板与参数映射
-- 图谱检索模块：mock 数据版检索服务
-- 答案生成模块：规则版答案组织与来源输出
-- 日志反馈模块：内存版日志与反馈记录
-- 单元测试
+# 启动服务（端口 8000）
+python -m uvicorn app.main:app --reload
+```
+
+---
+
+## RAG 管道流程
+
+```
+问题 → 规范化 → 上下文解析 → 实体抽取 → 意图分类 → 查询构建 → KG 检索 → 答案生成 → 溯源
+```
+
+---
 
 ## 目录结构
 
-- `app/`：服务主代码
-- `data/`：样例数据
-- `tests/`：基础测试
-- `requirements.txt`：Python 依赖
-
-## 当前技术栈
-
-- Python 3.14
-- FastAPI
-- Pydantic / pydantic-settings
-- Uvicorn
-
-## 快速启动
-
-安装依赖：
-
-```bash
-c:/python314/python.exe -m pip install -r requirements.txt
+```
+rag-service-node/
+├── app/
+│   ├── api/routes/          FastAPI 路由（ask / feedback / summary / health）
+│   ├── core/                配置（Pydantic Settings 环境变量注入）
+│   ├── models/              数据模型（api.py / domain.py / errors.py）
+│   ├── orchestration/       管道编排（qa_pipeline.py）
+│   ├── services/            服务模块
+│   │   ├── input_understanding/  规范化/实体抽取/意图分类/上下文解析
+│   │   ├── query_builder/        查询模板映射（16 个模板）
+│   │   ├── kg_retrieval/         KG 检索（8 端点 hybrid 双模）
+│   │   ├── answer_generation/    答案生成（rule 模板 + LLM 润色）
+│   │   ├── llm/                  LLM 调用（DeepSeek）
+│   │   └── logging_feedback/     日志与反馈记录
+│   └── config/
+│       ├── intent_rules.json      16 条意图规则配置
+│       └── entity_aliases.json    22 条实体别名（中/英双语）
+├── tests/
+│   ├── test_pipeline.py         19 个单元测试（全意图 + 多轮 + 反馈）
+│   ├── test_regression.py       36 个回归测试（questions.json 题集）
+│   └── test_integration.py      33 个集成测试（真实 KG + LLM）
+├── data/samples/questions.json  33 条测试题集
+├── pyproject.toml               Ruff + pytest 配置
+└── requirements.txt
 ```
 
-启动服务：
+---
 
-```bash
-c:/python314/python.exe -m uvicorn app.main:app --reload
+## 接口
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/health` | GET | 健康检查 |
+| `/api/qa/ask` | POST | 核心问答（question + session_id → answer + sources + facts） |
+| `/api/qa/feedback` | POST | 反馈记录 |
+| `/api/qa/summary` | GET | 统计摘要（意图分布/状态分布/失败清单） |
+
+---
+
+## 运行模式
+
+| 模式 | 环境变量 | 说明 |
+|------|----------|------|
+| mock | `qa_graph_backend=mock` | 本地假数据，用于开发/测试 |
+| hybrid | `qa_graph_backend=hybrid` | 真实 KG API 优先，失败降级 mock（默认） |
+| remote | `qa_graph_backend=remote` | 仅真实 KG API，失败报错 |
+
+```powershell
+# 使用 mock 模式运行
+$env:qa_graph_backend="mock"
+python -m uvicorn app.main:app --reload
 ```
 
-运行测试：
+---
 
-```bash
-c:/python314/python.exe -m unittest discover -s tests -v
+## 核心能力
+
+| 模块 | 覆盖 |
+|------|------|
+| 意图分类 | 16 类（12 简单 + 4 复杂），关键词打分 + 实体加分 |
+| 实体抽取 | 4 类实体（文物/博物馆/朝代/作者），22 条别名，中/英双语 |
+| KG 检索 | 8 个数据组 API 端点，JWT 鉴权，hybrid 降级 |
+| 答案生成 | rule 模式（16 类模板，~20ms）/ auto 模式（LLM 润色，~3.5s） |
+| 多轮对话 | 代词指代消解 + 话题切换 + 30min 超时 |
+| 中/英文 | 自动检测语种，lang=zh / lang=en |
+
+---
+
+## 测试
+
+```powershell
+# 全量测试
+python -m pytest tests/ -v                    # 55 用例（单元 + 回归）
+python -m pytest tests/test_integration.py -v  # 33 用例（真实 KG + LLM）
+
+# 代码质量
+ruff check .          # 静态检查
+ruff format --check . # 格式检查
 ```
 
-## 当前接口
+---
 
-- `GET /api/health`
-- `POST /api/qa/ask`
-- `POST /api/qa/feedback`
+## 环境变量
 
-## 当前适合承担的职责
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `qa_graph_backend` | KG 后端模式 | `hybrid` |
+| `qa_llm_backend` | LLM 后端模式 | `mock` |
+| `qa_llm_api_url` | LLM API 地址 | DeepSeek |
+| `qa_llm_api_key` | LLM API 密钥 | — |
+| `qa_kg_api_key` | KG API JWT 令牌 | — |
 
-- 问题标准化与输入理解
-- 意图分类、实体识别、别名归一
-- 查询模板映射
-- 规则版问答主流程联调
-- 与 `backend-spring` 的接口对接前验证
+完整配置见 `.env` 文件。
 
-## 尚未完成的能力
+---
 
-- 真实向量化、向量召回与 pgvector 检索
-- Mongo / Redis 接入
-- FastGPT 检索链路复用
-- 真实 LLM / RAG 生成
-- Node.js + TypeScript 正式实现
+## 技术栈
 
-## 推荐迁移策略
-
-建议按下面顺序演进，而不是一次性推倒重来：
-
-1. 继续在当前 Python 原型上把接口、字段、返回结构稳定下来。
-2. 将 `backend-spring -> rag-service-node` 的调用链先联通。
-3. 在保证接口不变的前提下，把 mock 检索替换成真实图谱或文档检索实现。
-4. 最后再决定是保留 Python 服务，还是平滑迁移到 Node.js + TypeScript。
-
-## 备注
-
-如果组内已经决定最终必须落 Node.js + TypeScript，可将当前目录视为“接口与流程原型”，重点复用：
-
-- 目录分层方式
-- 输入理解到答案输出的流水线设计
-- 请求与响应模型
-- 错误码和测试思路
+- Python 3.13 · FastAPI · Pydantic
+- Uvicorn（ASGI 服务器）
+- Ruff（lint + format）
+- pytest（测试框架）

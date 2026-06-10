@@ -65,7 +65,7 @@ class AnswerGenerationService:
                     llm_note=f"本回答由 {settings.llm_model} 基于知识图谱事实生成，关键事实已核实。",
                     confidence=understanding.confidence,
                 )
-            except Exception as exc:
+            except Exception:
                 if mode == "llm":
                     return GeneratedAnswer(answer="暂无相关数据", source=[], confidence=0.0)
                 # auto mode: fall through to rule-based answer

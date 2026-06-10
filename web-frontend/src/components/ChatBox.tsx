@@ -1,5 +1,7 @@
 
-export type Msg = { role: 'user' | 'assistant'; text: string; meta?: any };
+import type { BackendSource, BackendFact } from '../api/backendClient'
+
+export type Msg = { role: 'user' | 'assistant'; text: string; meta?: Record<string, unknown> };
 
 export default function ChatBox({
   messages = [],
@@ -30,7 +32,7 @@ export default function ChatBox({
 
               {m.meta?.sources && m.meta.sources.length > 0 && (
                 <div className="fgQuoteList">
-                  {m.meta.sources.map((s: any, idx: number) => (
+                  {m.meta.sources.map((s: BackendSource, idx: number) => (
                     <div key={idx} className="fgQuoteItem">
                       <div className="fgQuoteTag">doc</div>
                       <div className="fgQuoteBody">
@@ -50,7 +52,7 @@ export default function ChatBox({
 
               {m.meta?.facts && m.meta.facts.length > 0 && (
                 <div className="fgQuoteList">
-                  {m.meta.facts.map((fact: any, idx: number) => (
+                  {m.meta.facts.map((fact: BackendFact, idx: number) => (
                     <div key={`fact-${idx}`} className="fgQuoteItem">
                       <div className="fgQuoteTag">fact</div>
                       <div className="fgQuoteBody">
