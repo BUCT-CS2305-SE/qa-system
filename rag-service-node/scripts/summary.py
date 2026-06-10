@@ -1,7 +1,8 @@
 """回归测试汇总：提取 pytest 输出中的 pass/fail 计数并输出通过率。"""
+
+import re
 import subprocess
 import sys
-import re
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent  # rag-service-node/
@@ -11,8 +12,7 @@ total_fail = 0
 
 for f in files:
     r = subprocess.run(
-        [sys.executable, "-m", "pytest", f, "--tb=no", "-q"],
-        capture_output=True, text=True, cwd=str(root)
+        [sys.executable, "-m", "pytest", f, "--tb=no", "-q"], capture_output=True, text=True, cwd=str(root)
     )
     out = r.stdout + r.stderr
     m_pass = re.search(r"(\d+) passed", out)

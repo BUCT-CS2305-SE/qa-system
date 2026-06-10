@@ -15,7 +15,6 @@ from app.services.answer_generation.service import AnswerGenerationService
 from app.services.input_understanding.context_resolver import ContextResolver
 from app.services.input_understanding.service import InputUnderstandingService
 from app.services.kg_retrieval.service import KGRetrievalService
-from app.services.llm.service import LlmService
 from app.services.logging_feedback.service import LoggingFeedbackService
 from app.services.query_builder.service import QueryBuilderService
 
@@ -65,7 +64,9 @@ class QAPipeline:
                 except Exception:
                     pass
 
-            self._record_conversation(request.session_id, request.question, understanding.fail_reason or "问题无法识别", understanding)
+            self._record_conversation(
+                request.session_id, request.question, understanding.fail_reason or "问题无法识别", understanding
+            )
             return QAAskResponse(
                 request_id=trace_id,
                 answer=understanding.fail_reason or "问题无法识别",
@@ -100,9 +101,12 @@ class QAPipeline:
         # ── KG retrieval ────────────────────────────────────────
         if request.kg_token:
             from app.services.kg_retrieval.service import KGRetrievalService
+
             KGRetrievalService._current_kg_token = request.kg_token
         query_plan = self.query_builder.build(understanding)
-        retrieval = self.retrieval_service.retrieve(query_plan.template_name, query_plan.query_text, query_plan.parameters)
+        retrieval = self.retrieval_service.retrieve(
+            query_plan.template_name, query_plan.query_text, query_plan.parameters
+        )
         self.logging_service.record_query(trace_id, request.question, understanding, query_plan, retrieval)
 
         # ── No data ─────────────────────────────────────────────
@@ -127,7 +131,8 @@ class QAPipeline:
         srs_facts = [fact.model_dump() for fact in retrieval.facts]
         srs_sources = [
             {"source_name": f.source_name, "detail_url": f.source_url}
-            for f in retrieval.facts if f.source_name or f.source_url
+            for f in retrieval.facts
+            if f.source_name or f.source_url
         ]
         unique_sources: list[dict] = []
         seen = set()
@@ -195,10 +200,13 @@ class QAPipeline:
             if topic:
                 extracted["artifact"] = topic
         self.context_resolver.record_turn(session_id, "user", question, extracted, getattr(understanding, "intent", ""))
-        self.context_resolver.record_turn(session_id, "assistant", answer, extracted, getattr(understanding, "intent", ""))
+        self.context_resolver.record_turn(
+            session_id, "assistant", answer, extracted, getattr(understanding, "intent", "")
+        )
 
     def _infer_topic_from_question(self, question: str) -> str | None:
         import re
+
         topic = question.strip()
         strip_patterns = [
             r"(介绍一下|请介绍|介绍|解释一下|说说|讲讲|什么是|是什么|说什么|怎么说|是什么意思)\s*",
@@ -208,7 +216,7 @@ class QAPipeline:
         ]
         for pattern in strip_patterns:
             topic = re.sub(pattern, "", topic)
-        topic = topic.strip(" ?,.。，；：!！\"'\"\"")
+        topic = topic.strip()
         if not topic or len(topic) < 2:
             return None
         pronoun_tokens = {"它", "他", "她", "其", "这个", "那个", "这件", "那件", "这些", "那些", "该文物"}

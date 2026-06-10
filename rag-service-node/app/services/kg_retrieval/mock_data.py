@@ -151,7 +151,13 @@ MOCK_RESULTS = {
             "total_artifacts": 5441,
             "types": ["Vessel", "Ceramic", "Painting", "Sculpture", "Bronze"],
             "materials": ["Ceramic", "Bronze", "Stone", "Paper", "Lacquer"],
-            "museums": ["Princeton University Art Museum", "Art Institute of Chicago", "Brooklyn Museum", "British Museum", "Metropolitan Museum of Art"],
+            "museums": [
+                "Princeton University Art Museum",
+                "Art Institute of Chicago",
+                "Brooklyn Museum",
+                "British Museum",
+                "Metropolitan Museum of Art",
+            ],
             "source_name": "中国海外流失文物知识图谱",
             "source_url": "https://se-cs2305.yazs.top/docs",
         }

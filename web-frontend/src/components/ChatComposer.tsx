@@ -1,4 +1,13 @@
-export default function ChatComposer({ value, onChange, onSend, sending }: any) {
+import type { KeyboardEvent, ChangeEvent } from 'react'
+
+type Props = {
+  value: string
+  onChange: (v: string) => void
+  onSend: () => void
+  sending: boolean
+}
+
+export default function ChatComposer({ value, onChange, onSend, sending }: Props) {
   return (
     <footer className="fgComposer">
       <div className="fgComposerInner">
@@ -9,8 +18,8 @@ export default function ChatComposer({ value, onChange, onSend, sending }: any) 
             placeholder="输入问题（示例：这件文物现在藏在哪个博物馆？）"
             rows={2}
             value={value}
-            onChange={(e: any) => onChange(e.target.value)}
-            onKeyDown={(e: any) => {
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
+            onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (!sending && value.trim()) onSend();

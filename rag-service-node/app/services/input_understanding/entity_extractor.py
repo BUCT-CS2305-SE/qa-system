@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List
 
 from app.models.domain import EntityMention
 
@@ -12,10 +11,10 @@ class EntityExtractor:
         kb_path = Path(__file__).resolve().parents[2] / "config" / "entity_aliases.json"
         self.entity_kb = json.loads(kb_path.read_text(encoding="utf-8"))
 
-    def extract(self, question: str) -> Dict[str, List[EntityMention]]:
-        entities: Dict[str, List[EntityMention]] = {}
+    def extract(self, question: str) -> dict[str, list[EntityMention]]:
+        entities: dict[str, list[EntityMention]] = {}
         for entity_type, records in self.entity_kb.items():
-            matches: List[EntityMention] = []
+            matches: list[EntityMention] = []
             for record in records:
                 for alias in record["aliases"]:
                     if alias in question:
