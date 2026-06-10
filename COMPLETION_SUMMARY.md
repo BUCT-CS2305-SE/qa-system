@@ -86,90 +86,88 @@
   暗色/亮色             JWT透传                中/英文自适应
 ```
 
-### 2.2 完整数据流（端到端）
+### 2.2 完整数据流（端到端 Mermaid）
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          用户浏览器 (:5173)                                   │
-│                                                                             │
-│  ① Web平台跳转 ?token=<JWT>                                                 │
-│     main.tsx 解析 → localStorage.auth_token                                  │
-│                                                                             │
-│  ② 用户输入 "女史箴图在哪个博物馆？"                                          │
-│     ChatComposer → useChat.send() → backendClient.askBackend()               │
-│                                                                             │
-│  ③ fetch POST /api/qa/ask                                                   │
-│     Headers: X-Api-Key + Authorization: Bearer <token>                       │
-│     Body: { question, session_id, mode }                                     │
-└──────────────────────────┬──────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Spring Boot 网关 (:8081)                                 │
-│                                                                             │
-│  ④ ApiKeyFilter: 校验 X-Api-Key（health免鉴权）                               │
-│  ⑤ RateLimitFilter: 滑动窗口 60s/60次                                        │
-│  ⑥ QaController: 提取 Authorization → request.kgToken                        │
-│                                                                             │
-│  ⑦ QaServiceImpl.ask():                                                     │
-│     - 空问题检测 → no_data                                                   │
-│     - ragClient.callRag(question, sessionId, mode, kgToken)                  │
-│     - fallback: RAG不可用 → "问答服务暂时不可用"                               │
-│     - 记录 Metric + 历史                                                      │
-│                                                                             │
-│  ⑧ HttpRagClient → POST http://127.0.0.1:8000/api/qa/ask                    │
-│     Headers: X-Kg-Token: Bearer <token>                                      │
-└──────────────────────────┬──────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        FastAPI RAG 服务 (:8000)                               │
-│                                                                             │
-│  ⑨ 接收: X-Kg-Token → request.kg_token → KGRetrievalService._current_token  │
-│                                                                             │
-│  ═══ RAG 管道 (QAPipeline) ═══                                               │
-│                                                                             │
-│  ⑩ 规范化        → trim、去语气词、中/英文检测(lang=zh/en)                    │
-│  ⑪ 上下文解析    → 代词指代消解、话题切换、30min超时                           │
-│  ⑫ 实体抽取      → 22条别名(文物/博物馆/朝代/作者) + 问题文本推断              │
-│  ⑬ 意图分类      → 16条规则打分 + 实体加分 + 裸实体名回退                      │
-│  ⑭ 查询构建      → intent → template → 参数填充(16模板)                       │
-│                                                                             │
-│  ⑮ KG 检索       ┌── hybrid: 真实API → 失败降级mock                          │
-│                   ├── remote: 仅真实API                                       │
-│                   └── mock:   仅本地假数据                                     │
-│                                                                             │
-│  ⑯ 答案生成      ┌── rule: 16类中文模板(~20ms)                                │
-│                   └── auto: facts → DeepSeek LLM润色(~3.5s)                   │
-│                                                                             │
-│  ⑰ 溯源组装      → sources/facts 去重 + detail_url 附加                       │
-│  ⑱ 日志记录      → 会话历史 + 反馈日志 + 统计                                  │
-│                                                                             │
-│  ⑲ 返回 JSON     → { status, answer, sources, facts, intent, mode, ... }     │
-└──────────────────────────┬──────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         数据组 KG API                                        │
-│                     https://se-cs2305.yazs.top                                │
-│                                                                             │
-│  ⑳ Authorization: Bearer <token>  鉴权                                       │
-│  8个端点: search / property / related / grounding / query / stats /          │
-│            neighbors / compare                                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼  返回 facts + sources
-                           │
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        前端渲染                                               │
-│                                                                             │
-│  ㉑ ChatBox: 答案 + sources(可点击链接) + facts列表 + LLM/规则标注             │
-│  ㉒ 反馈: 👍/👎 → POST /api/qa/feedback                                      │
-│  ㉓ 会话: localStorage(5天TTL) + 后端H2(30天保留)                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    actor User as 用户
+    participant Web as Web平台
+    participant FE as 前端 :5173<br/>React+Vite
+    participant GW as 网关 :8081<br/>Spring Boot
+    participant RAG as RAG服务 :8000<br/>FastAPI
+    participant KG as 数据组KG API<br/>se-cs2305.yazs.top
+
+    Note over User,KG: ═══ ① Token 获取 ═══
+    Web->>Web: 用户登录, 获取 JWT
+    Web->>FE: 跳转 ?token=<JWT>
+    FE->>FE: main.tsx 解析URL参数<br/>→ localStorage.auth_token
+
+    Note over User,KG: ═══ ② 问答请求 ═══
+    User->>FE: 输入 "女史箴图在哪个博物馆？"
+    FE->>FE: ChatComposer → useChat.send()
+    FE->>GW: POST /api/qa/ask<br/>X-Api-Key + Authorization: Bearer JWT<br/>{question, session_id, mode}
+    GW->>GW: ApiKeyFilter 校验 X-Api-Key
+    GW->>GW: RateLimitFilter 限流检查(60s/60次)
+    GW->>GW: 提取 Authorization → kgToken
+    GW->>GW: 空问题? → 直接返回 no_data
+    GW->>GW: 记录 Metric 指标
+    GW->>GW: H2 保存历史记录
+    GW->>RAG: POST /api/qa/ask<br/>X-Kg-Token: Bearer JWT
+
+    Note over RAG: ═══ ③ RAG 管道 ═══
+    RAG->>RAG: 接收 X-Kg-Token → KGRetrievalService
+    RAG->>RAG: ① 规范化 (trim/去语气词/中英文检测)
+    RAG->>RAG: ② 上下文解析 (代词消解/话题切换/30min超时)
+    RAG->>RAG: ③ 实体抽取 (22条别名+问题文本推断)
+    RAG->>RAG: ④ 意图分类 (16规则打分+实体加分+裸名回退)
+    RAG->>RAG: ⑤ 查询构建 (intent→template→参数填充)
+
+    RAG->>KG: ⑥ KG检索 (hybrid双模)
+    KG-->>RAG: facts + sources
+
+    RAG->>RAG: ⑦ 答案生成<br/>rule: 16类中文模板 (~20ms)<br/>auto: DeepSeek LLM润色 (~3.5s)
+    RAG->>RAG: ⑧ 溯源组装 (sources/facts去重)
+    RAG->>RAG: ⑨ 日志记录 (会话+反馈+统计)
+
+    RAG-->>GW: { status, answer, sources, facts, intent, mode }
+
+    Note over GW,FE: ═══ ④ 响应返回 ═══
+    GW-->>FE: AskResponse JSON
+    FE->>FE: ChatBox 渲染<br/>答案 + sources(可点击链接)<br/>+ facts列表 + LLM/规则标注
+    FE-->>User: 展示回答
+
+    Note over User,FE: ═══ ⑤ 反馈闭环 ═══
+    User->>FE: 点击 👍 或 👎
+    FE->>GW: POST /api/qa/feedback<br/>{ trace_id, helpful, comment }
+    GW->>GW: H2 落库 Feedback
+    GW->>RAG: POST /api/qa/feedback (转发)
+    RAG->>RAG: 内存日志 + 统计摘要
+
+    Note over FE: ═══ ⑥ 会话持久化 ═══
+    FE->>FE: localStorage (5天TTL, 每小时GC, 500条上限)
+    GW->>GW: H2 持久化 (每日03:10清理30天前)
+    RAG->>RAG: 内存上下文缓存 (30min超时)
 ```
 
----
+### 2.3 RAG 管道核心流程
+
+```mermaid
+flowchart TD
+    Q["用户问题"] --> N["规范化<br/>trim/去语气词/中英文检测"]
+    N --> C["上下文解析<br/>代词消解/话题切换/30min超时"]
+    C --> E["实体抽取<br/>22别名匹配 + 文本推断"]
+    E --> I["意图分类<br/>16规则打分 + 实体加分 + 裸名回退"]
+    I --> QB["查询构建<br/>intent → template → 参数填充"]
+    QB --> KG["KG 检索<br/>hybrid: API优先→mock降级<br/>remote: 仅API / mock: 假数据"]
+    KG --> AG["答案生成<br/>rule: 模板(~20ms)<br/>auto: DeepSeek LLM(~3.5s)"]
+    AG --> TR["溯源组装<br/>sources/facts去重 + detail_url"]
+    TR --> LOG["日志记录<br/>会话历史 + 反馈 + 统计"]
+    LOG --> OUT["返回 JSON<br/>{status, answer, sources, facts, intent}"]
+    KG -.->|"no_data"| ND["无数据兜底<br/>'暂无相关数据'"]
+    ND --> OUT
+    C -.->|"无上下文问代词"| CL["clarify<br/>'无法确定指代对象'"]
+    CL --> OUT
+```
 
 ## 三、剩余未完成
 
