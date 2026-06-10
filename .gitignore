@@ -81,4 +81,14 @@ package-lock.json
 yarn.lock
 # DO NOT ignore pnpm-lock.yaml
 
+# Ruff (Python linter)
+.ruff_cache/
+
+# JaCoCo (Java coverage)
+backend-spring/target/site/jacoco/
+
+# Wiki submodule & draft files
+qa-system.wiki/
+bug.md
+
 # End of file
