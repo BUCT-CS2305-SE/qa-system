@@ -14,8 +14,8 @@ try {
     const cleanUrl = window.location.origin + window.location.pathname;
     window.history.replaceState({}, document.title, cleanUrl);
   }
-} catch (_) {
-  // 忽略解析错误
+} catch {
+  // 忽略解析错误，如URL中没有token参数则正常启动
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

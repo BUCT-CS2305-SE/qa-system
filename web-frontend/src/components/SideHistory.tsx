@@ -30,7 +30,7 @@ export default function SideHistory({ conversations, activeId, onSelect, onNew, 
       });
       setSent(true);
       setTimeout(() => { setShowFeedback(false); setSent(false); setComment(''); }, 1500);
-    } catch {}
+    } catch { /* network error, ignore */ }
   }
 
   return (

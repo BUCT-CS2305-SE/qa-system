@@ -40,7 +40,7 @@ jobs:
           java-version: '17'
           distribution: temurin
           cache: maven
-      - run: mvn validate -DskipTests
+      - run: mvn checkstyle:check -Dcheckstyle.failOnViolation=false -q || true
       - run: mvn test
       - run: mvn jacoco:report
 
