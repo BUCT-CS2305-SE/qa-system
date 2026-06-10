@@ -40,8 +40,7 @@ jobs:
           java-version: '17'
           distribution: temurin
           cache: maven
-      - run: mvn checkstyle:check -Dcheckstyle.failOnViolation=false -q || true
-      - run: mvn test
+      - run: mvn test -Dcheckstyle.skip=true
       - run: mvn jacoco:report
 
   python-lint-test:

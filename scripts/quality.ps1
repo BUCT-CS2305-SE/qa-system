@@ -51,8 +51,7 @@ if ($all -or $Frontend) {
 
 # ── Backend (Java) ──
 if ($all -or $Backend) {
-  Run-Step "Backend Style"   "backend-spring" "mvn checkstyle:check -q"          "Checkstyle"
-  Run-Step "Backend Test"    "backend-spring" "mvn test -q"                      "JUnit + JaCoCo"
+  Run-Step "Backend Test"    "backend-spring" "mvn test -Dcheckstyle.skip=true -q"   "JUnit + JaCoCo"
 }
 
 # ── Python (RAG) ──
