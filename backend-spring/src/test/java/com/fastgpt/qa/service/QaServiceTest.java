@@ -43,7 +43,7 @@ class QaServiceTest {
         assertEquals("no_data", resp.getStatus());
         assertEquals(2001, resp.getCode());
         assertTrue(resp.getAnswer().contains("暂无相关数据"));
-        verify(ragClient, never()).callRag(anyString(), anyString(), anyString());
+        verify(ragClient, never()).callRag(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -59,7 +59,7 @@ class QaServiceTest {
 
     @Test
     void shouldReturnFallbackWhenRagReturnsNull() throws Exception {
-        when(ragClient.callRag(anyString(), anyString(), anyString())).thenReturn(null);
+        when(ragClient.callRag(anyString(), anyString(), anyString(), anyString())).thenReturn(null);
 
         AskRequest request = new AskRequest("什么是女史箴图？", "sess-1");
         AskResponse resp = qaService.ask(request);
@@ -73,7 +73,7 @@ class QaServiceTest {
 
     @Test
     void shouldReturnFallbackWhenRagThrowsException() throws Exception {
-        when(ragClient.callRag(anyString(), anyString(), anyString()))
+        when(ragClient.callRag(anyString(), anyString(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("RAG service down"));
 
         AskRequest request = new AskRequest("什么是女史箴图？", "sess-1");
@@ -94,7 +94,7 @@ class QaServiceTest {
         mockResp.setIntent("artifact_museum");
         mockResp.setTraceId("trace-1");
 
-        when(ragClient.callRag(anyString(), anyString(), anyString())).thenReturn(mockResp);
+        when(ragClient.callRag(anyString(), anyString(), anyString(), anyString())).thenReturn(mockResp);
 
         AskRequest request = new AskRequest("女史箴图在哪个博物馆？", "sess-1");
         AskResponse resp = qaService.ask(request);
@@ -110,11 +110,11 @@ class QaServiceTest {
     void shouldPassSessionIdToRagClient() throws Exception {
         AskResponse mockResp = new AskResponse();
         mockResp.setStatus("ok");
-        when(ragClient.callRag(anyString(), anyString(), anyString())).thenReturn(mockResp);
+        when(ragClient.callRag(anyString(), anyString(), anyString(), anyString())).thenReturn(mockResp);
 
         AskRequest request = new AskRequest("test", "sess-abc", "rule");
         qaService.ask(request);
 
-        verify(ragClient).callRag("test", "sess-abc", "rule");
+        verify(ragClient).callRag("test", "sess-abc", "rule", null);
     }
 }
