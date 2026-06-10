@@ -50,28 +50,21 @@ public class QaController {
 
     @PostMapping("/feedback")
     public ResponseEntity<Map<String, Object>> feedback(@RequestBody Map<String, Object> payload) {
+        String traceId = (String) payload.get("trace_id");
+        boolean helpful = Boolean.TRUE.equals(payload.get("helpful"));
+        String comment = (String) payload.get("comment");
+
+        // 先落库，不依赖 RAG 是否在线
+        feedbackRepository.save(new FeedbackEntity(traceId, helpful, comment));
+
+        // 异步转发 RAG（失败不影响落库）
         try {
-            String traceId = (String) payload.get("trace_id");
-            boolean helpful = Boolean.TRUE.equals(payload.get("helpful"));
-            String comment = (String) payload.get("comment");
-
-            feedbackRepository.save(new FeedbackEntity(traceId, helpful, comment));
-
-            Map<String, Object> result = ragClient.sendFeedback(traceId, helpful, comment);
-            return ResponseEntity.ok(result);
+            ragClient.sendFeedback(traceId, helpful, comment);
         } catch (Exception ex) {
-            logger.error("feedback proxy failed: {}", ex.getMessage());
-
-            try {
-                String traceId = (String) payload.get("trace_id");
-                boolean helpful = Boolean.TRUE.equals(payload.get("helpful"));
-                String comment = (String) payload.get("comment");
-                feedbackRepository.save(new FeedbackEntity(traceId, helpful, comment));
-            } catch (Exception ignored) {}
-
-            Map<String, Object> err = Map.of("status", "error", "code", 5004, "message", "反馈提交失败");
-            return ResponseEntity.internalServerError().body(err);
+            logger.warn("feedback forward to RAG failed (ignored): {}", ex.getMessage());
         }
+
+        return ResponseEntity.ok(Map.of("status", "ok", "code", 0, "message", "反馈已记录"));
     }
 
     @GetMapping("/summary")
