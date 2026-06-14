@@ -1,6 +1,6 @@
 # API 契约文档
 
-版本：v1.0 | 基础 URL：`http://127.0.0.1:8081`
+版本：v2.0 | 公网 URL：`https://qa-culturerelic.xyz` | 本地 URL：`http://127.0.0.1:8081`
 
 ---
 
@@ -111,6 +111,40 @@
 
 ---
 
+## 1-b. POST /api/v1/ask（外部 API，无需用户 token）
+
+接口格式与 `/api/qa/ask` 完全一致，区别在于鉴权。
+
+### 请求
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `question` | string | 是 | 用户自然语言问题，最长500字符 |
+| `token` | string | 是 | 知识图谱鉴权 token（由数据平台签发） |
+| `session_id` | string | 否 | 会话标识 |
+| `mode` | string | 否 | `rule` / `auto` / `llm`，默认 `auto` |
+
+```bash
+curl -X POST https://qa-culturerelic.xyz/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: qa-demo-key" \
+  -d '{"question":"徐闻沉船有哪些文物","token":"eyJhbG..."}'
+```
+
+### 响应
+
+与 `/api/qa/ask` 一致，参见上方响应格式。
+
+### 与 /api/qa/ask 的区别
+
+| | `/api/qa/ask` | `/api/v1/ask` |
+|---|---|---|
+| 用途 | Web 端跳转后使用 | 第三方直接调用 |
+| X-Api-Key | 需要 | 需要 |
+| Authorization Bearer | **需要**（JWT 用户 token） | **不需要** |
+
+---
+
 ## 2. POST /api/qa/feedback
 
 ### 请求
@@ -160,10 +194,21 @@
 
 ## 4. 鉴权
 
-所有 `/api/qa/*` 请求需携带请求头：
+### /api/qa/*（Web 端使用）
+
+需携带两个请求头：
 
 ```
-X-Api-Key: <apikey>
+X-Api-Key: qa-demo-key
+Authorization: Bearer <用户JWT>
+```
+
+### /api/v1/*（外部 API 调用）
+
+仅需携带一个请求头：
+
+```
+X-Api-Key: qa-demo-key
 ```
 
 开发环境默认 key：`qa-demo-key`

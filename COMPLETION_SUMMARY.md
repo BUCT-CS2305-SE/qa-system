@@ -47,9 +47,10 @@
 
 | 机制 | 方案 |
 |------|------|
-| API 鉴权 | `X-Api-Key` 头校验，`ApiKeyFilter` 拦截 `/api/qa/*`，health 免鉴权 |
-| 限流 | IP 级别滑动窗口，60s/60次（`RateLimitInterceptor`），429 响应 |
-| CORS | 允许 `localhost:5173`，支持预检请求 |
+| Web 端鉴权 | `X-Api-Key` + `Authorization: Bearer <JWT>`，`ApiKeyFilter` 拦截 `/api/qa/*`，health 免鉴权 |
+| 外部 API 鉴权 | 仅 `X-Api-Key`，`/api/v1/*` 免 JWT 校验 |
+| 限流 | IP 级别滑动窗口，60s/60次（`RateLimitFilter`），覆盖 `/api/qa/*` + `/api/v1/*` |
+| CORS | `allowedOriginPatterns("*")`，支持预检请求 |
 
 ### 1.6 工程化配套（已完成）
 
@@ -62,7 +63,9 @@
 | Docker | 三服务 Dockerfile + `docker-compose.yml`（健康检查 + 依赖顺序） |
 | 脚本 | `start-dev.ps1`、`stop-dev.ps1`、`docker-deploy.ps1`、`run-tests.ps1`、`quality.ps1` |
 | 代码质量 | Ruff（Python）128处自动修复 + ESLint（前端）+ Checkstyle/JaCoCo（Java）+ GitHub Actions CI |
-| Web 端对接 | URL参数传token（`?token=<JWT>`）、双重鉴权（X-Api-Key + JWT）、局域网跨域 |
+| Web 端对接 | URL参数传token（`?token=<JWT>`）、双重鉴权（X-Api-Key + JWT）、固定公网域名 |
+| 内网穿透 | Cloudflare Tunnel，固定域名 `https://qa-culturerelic.xyz`，免费 SSL 证书 |
+| 外部 API | `POST /api/v1/ask`，第三方直接调问答接口，仅需 X-Api-Key，支持 token 透传 |
 
 ---
 
@@ -71,6 +74,16 @@
 ### 2.1 系统拓扑
 
 ```
+                        ┌──────────────────────┐
+                        │   Cloudflare CDN      │
+                        │ qa-culturerelic.xyz   │
+                        └──────────┬───────────┘
+                                   │ TLS
+                        ┌──────────▼───────────┐
+                        │  Cloudflare Tunnel    │
+                        │  (cloudflared)        │
+                        └──────────┬───────────┘
+                                   │ localhost
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │  web-frontend │────▶│backend-spring│────▶│rag-service-  │────▶│  数据组 KG    │
 │  React 19    │     │ Spring Boot  │     │    node       │     │  API         │
@@ -84,6 +97,7 @@
   反馈按钮              CORS                   答案生成
   Token管理             指标监控               溯源/日志
   暗色/亮色             JWT透传                中/英文自适应
+                      外部API(/api/v1/ask)
 ```
 
 ### 2.2 完整数据流（端到端 Mermaid）
@@ -102,7 +116,15 @@ sequenceDiagram
     Web->>FE: 跳转 ?token=<JWT>
     FE->>FE: main.tsx 解析URL参数<br/>→ localStorage.auth_token
 
-    Note over User,KG: ═══ ② 问答请求 ═══
+    Note over User,KG: ═══ ② 外部 API 调用 ═══
+    actor Third as 第三方
+    Third->>GW: POST /api/v1/ask<br/>X-Api-Key<br/>{question, token}
+    GW->>GW: ApiKeyFilter 校验 X-Api-Key<br/>(/api/v1/* 免 JWT 校验)
+    GW->>GW: RateLimitFilter 限流检查
+    GW->>GW: 提取 token → kgToken
+    GW->>RAG: POST /api/qa/ask<br/>X-Kg-Token: Bearer token
+
+    Note over Third,KG: ═══ ③ 问答请求（Web端） ═══
     User->>FE: 输入 "女史箴图在哪个博物馆？"
     FE->>FE: ChatComposer → useChat.send()
     FE->>GW: POST /api/qa/ask<br/>X-Api-Key + Authorization: Bearer JWT<br/>{question, session_id, mode}
@@ -114,7 +136,7 @@ sequenceDiagram
     GW->>GW: H2 保存历史记录
     GW->>RAG: POST /api/qa/ask<br/>X-Kg-Token: Bearer JWT
 
-    Note over RAG: ═══ ③ RAG 管道 ═══
+    Note over RAG: ═══ ④ RAG 管道 ═══
     RAG->>RAG: 接收 X-Kg-Token → KGRetrievalService
     RAG->>RAG: ① 规范化 (trim/去语气词/中英文检测)
     RAG->>RAG: ② 上下文解析 (代词消解/话题切换/30min超时)
@@ -131,19 +153,19 @@ sequenceDiagram
 
     RAG-->>GW: { status, answer, sources, facts, intent, mode }
 
-    Note over GW,FE: ═══ ④ 响应返回 ═══
+    Note over GW,FE: ═══ ⑤ 响应返回 ═══
     GW-->>FE: AskResponse JSON
     FE->>FE: ChatBox 渲染<br/>答案 + sources(可点击链接)<br/>+ facts列表 + LLM/规则标注
     FE-->>User: 展示回答
 
-    Note over User,FE: ═══ ⑤ 反馈闭环 ═══
+    Note over User,FE: ═══ ⑥ 反馈闭环 ═══
     User->>FE: 点击 👍 或 👎
     FE->>GW: POST /api/qa/feedback<br/>{ trace_id, helpful, comment }
     GW->>GW: H2 落库 Feedback
     GW->>RAG: POST /api/qa/feedback (转发)
     RAG->>RAG: 内存日志 + 统计摘要
 
-    Note over FE: ═══ ⑥ 会话持久化 ═══
+    Note over FE: ═══ ⑦ 会话持久化 ═══
     FE->>FE: localStorage (5天TTL, 每小时GC, 500条上限)
     GW->>GW: H2 持久化 (每日03:10清理30天前)
     RAG->>RAG: 内存上下文缓存 (30min超时)
@@ -196,4 +218,4 @@ flowchart TD
 | 代码文件（Java + Python + TS） | ~55 个 |
 | Bug 修复 | 15 个 |
 | Ruff 代码质量修复 | 128 处 |
-| 交付文档 | 9 份（SRS/设计/管理/模块/完成度/测试/用户手册/API契约/会议纪要×7） |
+| 交付文档 | 11 份（SRS/设计/管理/模块/完成度/测试/用户手册/API契约/内网穿透/会议纪要×7） |
