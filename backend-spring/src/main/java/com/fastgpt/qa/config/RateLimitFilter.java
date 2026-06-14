@@ -38,7 +38,7 @@ public class RateLimitFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String path = httpRequest.getRequestURI();
-        if (!path.startsWith("/api/qa/") || path.startsWith("/api/qa/health")) {
+        if ((!path.startsWith("/api/qa/") && !path.startsWith("/api/v1/")) || path.startsWith("/api/qa/health")) {
             chain.doFilter(request, response);
             return;
         }
