@@ -42,7 +42,7 @@ export type BackendHistoryItem = {
   createdAt: string;
 };
 
-const BASE_URL = import.meta.env.VITE_API_BASE != null ? import.meta.env.VITE_API_BASE : 'http://127.0.0.1:8081';
+const BASE_URL = import.meta.env.VITE_API_BASE != null ? import.meta.env.VITE_API_BASE : '';
 const API_KEY = import.meta.env.VITE_API_KEY ?? 'qa-demo-key';
 
 const AUTH_TOKEN_KEY = 'auth_token';
@@ -104,7 +104,7 @@ export async function sendBackendFeedback(
   comment?: string
 ): Promise<BackendFeedbackResponse | null> {
   try {
-    const response = await fetch(`http://127.0.0.1:8081/api/qa/feedback`, {
+    const response = await fetch(`${BASE_URL}/api/qa/feedback`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({

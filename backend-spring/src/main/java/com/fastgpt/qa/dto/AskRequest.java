@@ -1,5 +1,6 @@
 package com.fastgpt.qa.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -14,6 +15,7 @@ public class AskRequest {
 
     private String mode = "auto";
 
+    @JsonAlias({"token", "kg_token"})
     private String kgToken;
 
     public AskRequest() {

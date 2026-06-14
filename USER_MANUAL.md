@@ -1,6 +1,6 @@
 # 文物知识问答子系统 — 用户使用手册
 
-版本：v1.2 | 更新日期：2026-06-08
+版本：v1.3 | 更新日期：2026-06-14
 
 ---
 
@@ -24,19 +24,40 @@
 
 | 环境 | 地址 |
 |------|------|
+| 公网 | **`https://qa-culturerelic.xyz`** |
 | 本地开发 | `http://localhost:5173` |
-| 局域网 | `http://你的IP:5173`（见下方 2.1.1） |
 | Docker 部署 | `http://localhost:5173` |
 
-#### 2.1.1 局域网访问（开发联调）
+#### 2.1.1 公网访问（Cloudflare Tunnel）
 
-为了让 Web 端能跳转到本系统，前端已绑定 `0.0.0.0`。获取本机 IP：
+系统通过 Cloudflare Tunnel 实现内网穿透，域名 `qa-culturerelic.xyz` 永久固定。
 
+启动方式：依次启动 4 个服务
+
+**终端 1 — RAG 服务（端口 8000）：**
 ```powershell
-ipconfig | findstr "IPv4"
+cd C:\Users\Administrator\Desktop\qa-system\rag-service-node
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Web 端通过 `http://<你的IP>:5173` 访问即可。
+**终端 2 — 后端网关（端口 8081）：**
+```powershell
+cd C:\Users\Administrator\Desktop\qa-system\backend-spring
+mvn spring-boot:run -q
+```
+
+**终端 3 — 前端界面（端口 5173）：**
+```powershell
+cd C:\Users\Administrator\Desktop\qa-system\web-frontend
+pnpm dev
+```
+
+**终端 4 — 穿透隧道：**
+```powershell
+C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Packages\Cloudflare.cloudflared_Microsoft.Winget.Source_8wekyb3d8bbwe\cloudflared.exe tunnel run --token eyJhIjoiYzljYmVhODQxNTAyYmNhMTkzMjc1MDFmZTVlOTU5ZDAiLCJ0IjoiMjAxZDU3NmYtZDBiMS00ZDc4LWFiNjgtNDY0NjVmM2RlMzUxIiwicyI6IlpXWXlPV1F5TmpjdFlURTVNQzAwTnpCaExXSXhNMll0Wmpaa01qaGxOREl3WlRFeSJ9
+```
+
+四个终端都启动后，`https://qa-culturerelic.xyz` 即可公网访问。
 
 #### 2.1.2 Token 鉴权（必读）
 
@@ -296,12 +317,16 @@ A: 系统有 IP 级别限流（60 次/60 秒窗口）。正常使用不会触发
 ### 8.1 系统架构
 
 ```
-浏览器 (:5173) → Spring Boot (:8081) → FastAPI RAG (:8000) → KG API
-                 ├ 鉴权 (X-Api-Key + Authorization)
-                 ├ 限流 (60次/60s)
-                 ├ 历史/反馈 (H2)
-                 ├ CORS
-                 └ Token 透传 (Authorization → X-Kg-Token)
+用户浏览器 → Cloudflare CDN → Cloudflare Tunnel → 本地服务
+              ↓
+     https://qa-culturerelic.xyz
+              ↓
+    Vite 前端 (:5173) → Spring Boot (:8081) → FastAPI RAG (:8000) → KG API
+                         ├ 鉴权 (X-Api-Key + Authorization)
+                         ├ 限流 (60次/60s)
+                         ├ 历史/反馈 (H2)
+                         ├ CORS
+                         └ Token 透传 (Authorization → X-Kg-Token)
                                      ├ 意图分类 (16种)
                                      ├ 实体抽取 (33个别名)
                                      ├ 中/英文自适应搜索
@@ -309,7 +334,40 @@ A: 系统有 IP 级别限流（60 次/60 秒窗口）。正常使用不会触发
                                      └ 答案生成 (rule/auto)
 ```
 
-### 8.2 环境变量
+### 8.2 外部 API 接口
+
+第三方可通过 API 接口直接调用问答服务：
+
+**接口地址：** `POST https://qa-culturerelic.xyz/api/v1/ask`
+
+**请求头：**
+```
+Content-Type: application/json
+X-Api-Key: qa-demo-key
+```
+
+**请求体：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `question` | string | 是 | 问题文本，最长500字符 |
+| `token` | string | 是 | 知识图谱鉴权 JWT（数据平台签发） |
+| `session_id` | string | 否 | 会话标识 |
+| `mode` | string | 否 | `rule` / `auto` / `llm`，默认 `auto` |
+
+**调用示例：**
+```bash
+curl -X POST https://qa-culturerelic.xyz/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: qa-demo-key" \
+  -d '{"question":"徐闻沉船有哪些文物","token":"eyJhbG..."}'
+```
+
+响应格式与 `/api/qa/ask` 一致，详见 [API 契约文档](specs/api-contract.md)。
+
+> **注意**：本接口仅需 `X-Api-Key`，无需 JWT 用户凭证（`Authorization` 头）。
+
+### 8.3 环境变量
 
 前端（`web-frontend/.env`）：
 
@@ -333,7 +391,7 @@ RAG 服务（`rag-service-node/.env`）：
 | `qa_kg_api_key_header` | KG API 鉴权请求头名 | `Authorization` |
 | `qa_kg_api_key_prefix` | KG API 鉴权前缀 | `Bearer ` |
 
-### 8.3 运行测试
+### 8.4 运行测试
 
 ```powershell
 # 单元测试 + 回归题集（mock 模式，55 用例）

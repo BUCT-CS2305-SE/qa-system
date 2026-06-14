@@ -41,25 +41,29 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
-        if (requiredApiKey == null || requiredApiKey.isEmpty()) {
+        if (!path.startsWith("/api/")) {
             chain.doFilter(request, response);
             return;
         }
 
-        String apiKey = httpRequest.getHeader("X-Api-Key");
-        if (!requiredApiKey.equals(apiKey)) {
-            logger.warn("unauthorized request (missing X-Api-Key) from {} to {}",
-                    httpRequest.getRemoteAddr(), path);
-            reject(httpResponse, "未授权访问");
-            return;
+        if (requiredApiKey != null && !requiredApiKey.isEmpty()) {
+            String apiKey = httpRequest.getHeader("X-Api-Key");
+            if (!requiredApiKey.equals(apiKey)) {
+                logger.warn("unauthorized request (missing X-Api-Key) from {} to {}",
+                        httpRequest.getRemoteAddr(), path);
+                reject(httpResponse, "未授权访问");
+                return;
+            }
         }
 
-        String auth = httpRequest.getHeader("Authorization");
-        if (auth == null || !auth.startsWith("Bearer ") || auth.length() < 20) {
-            logger.warn("unauthorized request (missing Authorization) from {} to {}",
-                    httpRequest.getRemoteAddr(), path);
-            reject(httpResponse, "缺少用户凭证，请通过Web端登录后访问");
-            return;
+        if (path.startsWith("/api/qa/")) {
+            String auth = httpRequest.getHeader("Authorization");
+            if (auth == null || !auth.startsWith("Bearer ") || auth.length() < 20) {
+                logger.warn("unauthorized request (missing Authorization) from {} to {}",
+                        httpRequest.getRemoteAddr(), path);
+                reject(httpResponse, "缺少用户凭证，请通过Web端登录后访问");
+                return;
+            }
         }
 
         chain.doFilter(request, response);
